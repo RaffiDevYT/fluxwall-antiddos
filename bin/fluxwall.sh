@@ -36,6 +36,7 @@ function show_help() {
     echo -e "  ${GREEN}blacklist <ip>${NC}          Menambahkan IP ke blacklist permanen"
     echo -e "  ${GREEN}unblacklist <ip>${NC}        Menghapus IP dari blacklist permanen"
     echo -e "  ${GREEN}test${NC}                    Menjalankan automated test suite"
+    echo -e "  ${RED}uninstall${NC}               Menghapus instalasi FluxWall secara bersih"
     echo ""
 }
 
@@ -141,6 +142,14 @@ case "$CMD" in
 
     test)
         bash test/test_rate_limit.sh
+        ;;
+
+    uninstall)
+        if [ -f "$ROOT_DIR/scripts/uninstall.sh" ]; then
+            bash "$ROOT_DIR/scripts/uninstall.sh"
+        else
+            curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/scripts/uninstall.sh | sudo bash
+        fi
         ;;
 
     *)
