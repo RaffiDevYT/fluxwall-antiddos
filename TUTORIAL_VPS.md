@@ -82,15 +82,10 @@ docker --version
 docker compose version
 ```
 
-### Langkah 3.3: Upload Folder Proyek ke VPS
-Dari komputer lokal Anda (menggunakan Git Bash, Terminal, atau PowerShell):
+### Langkah 3.3: Clone Repository ke VPS
+Jalankan perintah clone langsung di terminal VPS Anda:
 ```bash
-# Contoh menggunakan SCP:
-scp -r c:/laragon/www/antiddos root@IP_VPS_ANDA:/opt/antiddos
-```
-*Atau gunakan Git di VPS:*
-```bash
-git clone https://github.com/USERNAME/REPO-ANDA.git /opt/antiddos
+git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git /opt/antiddos
 ```
 
 ### Langkah 3.4: Sesuaikan File Konfigurasi Produksi
