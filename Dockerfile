@@ -1,7 +1,8 @@
 FROM openresty/openresty:1.25.3.1-alpine
 
-# Install tools
-RUN apk add --no-cache curl tzdata
+# Install tools and lua-resty-http
+RUN apk add --no-cache curl tzdata \
+    && /usr/local/openresty/bin/opm get ledgetech/lua-resty-http || true
 
 # Create directory structure
 RUN mkdir -p /usr/local/openresty/nginx/lua \
