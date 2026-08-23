@@ -30,10 +30,13 @@ _M.challenge = {
     difficulty = 4,              -- Number of leading zeroes required in SHA-256 hash
 }
 
--- GeoIP Country Filtering
+-- GeoIP Country & ASN Filtering (with ipinfo.io integration)
 _M.geoip = {
     enabled = false,             -- Set to true to activate country-based filtering
     mode = "blacklist",          -- Options: "whitelist" (allow only listed countries) or "blacklist" (block listed countries)
+    ipinfo_token = os.getenv("IPINFO_TOKEN") or nil, -- Optional: https://ipinfo.io API token (free tier works without token up to 50k req/month)
+    cache_ttl = 604800,          -- Cache IP lookup results for 7 days (604800s) in Redis/L1
+    block_datacenters = false,   -- Optional: Auto-block cloud datacenter / VPS ASN IPs (AWS, DigitalOcean, Hetzner, etc.)
     blocked_countries = {
         ["CN"] = true,
         ["RU"] = true,
