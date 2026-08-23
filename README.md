@@ -63,13 +63,15 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 │   ├── gateway.lua             # Master pipeline entrypoint (access_by_lua)
 │   └── logger.lua              # Structured security event logger
 ├── scripts/                    # Automation Scripts
-│   └── install.sh              # Interactive 1-line automated installer
+│   ├── install.sh              # Interactive 1-line automated installer
+│   └── uninstall.sh            # Clean automated uninstaller
 ├── test/                       # Automated Test Suites
 │   ├── test_rate_limit.ps1     # Extended PowerShell automated test suite
 │   └── test_rate_limit.sh      # Extended Bash automated test suite
 ├── Dockerfile                  # OpenResty custom Docker build
 ├── docker-compose.yml          # Multi-container stack (Gateway, Redis, Mock Backend)
 ├── install.sh                  # Quick install entrypoint
+├── uninstall.sh                # Quick uninstall entrypoint
 ├── LICENSE                     # MIT License
 └── README.md
 ```
@@ -94,6 +96,20 @@ curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/i
 
 ---
 
+## 🗑️ Cara Uninstall FluxWall
+
+Jika Anda ingin menghapus FluxWall beserta containernya secara bersih dari VPS, gunakan salah satu cara berikut:
+
+```bash
+# Opsi 1: Menggunakan CLI fluxwall
+fluxwall uninstall
+
+# Opsi 2: 1-Line command via curl
+curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/uninstall.sh | sudo bash
+```
+
+---
+
 ## 🛠️ Manajemen Cepat via CLI (`fluxwall`)
 
 Setelah terpasang, Anda dapat mengelola gateway langsung dari terminal VPS:
@@ -108,6 +124,7 @@ Setelah terpasang, Anda dapat mengelola gateway langsung dari terminal VPS:
 | `fluxwall blacklist <ip>` | Menambahkan IP ke Blacklist Permanen |
 | `fluxwall reload` | Reload konfigurasi Nginx/Lua tanpa downtime |
 | `fluxwall restart` | Restart seluruh layanan gateway & Redis |
+| `fluxwall uninstall` | Menghapus seluruh container & konfigurasi FluxWall |
 
 ---
 
