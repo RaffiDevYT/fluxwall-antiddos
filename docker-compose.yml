@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # 1. OpenResty Anti-DDoS Edge Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antiddos_gateway
+    ports:
+      - "8080:80"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ADMIN_API_KEY=super-secret-admin-key-2026
+    volumes:
+      - ./conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ./lua:/usr/local/openresty/nginx/lua:ro
+      - ./admin:/usr/local/openresty/nginx/admin:ro
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+    networks:
+      - antiddos_net
+
+  # 2. Redis In-Memory State & Rate Limiting Backend
+  redis:
+    image: redis:7-alpine
+    container_name: antiddos_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+    restart: unless-stopped
+    networks:
+      - antiddos_net
+
+  # 3. Upstream Mock Backend Server (Node.js)
+  backend:
+    image: node:20-alpine
+    container_name: antiddos_backend
+    working_dir: /app
+    volumes:
+      - ./docker/backend:/app:ro
+    command: node server.js
+    restart: unless-stopped
+    networks:
+      - antiddos_net
+
+networks:
+  antiddos_net:
+    driver: bridge
