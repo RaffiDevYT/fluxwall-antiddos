@@ -20,6 +20,33 @@ _M.admin = {
     enabled = true,
 }
 
+-- JavaScript Proof-of-Work (PoW) Challenge / "Under Attack Mode"
+_M.challenge = {
+    enabled = false,             -- Can be enabled globally or triggered automatically during Surge Mode
+    auto_trigger_on_surge = true, -- Automatically issue PoW challenge when Surge Mode is active
+    secret = os.getenv("CHALLENGE_SECRET") or "fluxwall-secret-pow-salt-2026-key",
+    cookie_name = "__fluxwall_token",
+    cookie_ttl = 86400,          -- 24 hours validity for verified browsers
+    difficulty = 4,              -- Number of leading zeroes required in SHA-256 hash
+}
+
+-- GeoIP Country Filtering
+_M.geoip = {
+    enabled = false,             -- Set to true to activate country-based filtering
+    mode = "blacklist",          -- Options: "whitelist" (allow only listed countries) or "blacklist" (block listed countries)
+    blocked_countries = {
+        ["CN"] = true,
+        ["RU"] = true,
+        ["KP"] = true,
+    },
+    allowed_countries = {
+        ["ID"] = true,
+        ["SG"] = true,
+        ["MY"] = true,
+        ["US"] = true,
+    },
+}
+
 -- L1 Memory Cache TTLs (in seconds)
 _M.l1_cache = {
     whitelist_ttl = 10,      -- Cache whitelist positive lookups for 10s
@@ -35,7 +62,7 @@ _M.default_limit = {
     retry_after = 2,         -- Value of Retry-After header in seconds
 }
 
--- Method-based weights or limits (e.g. POST/PUT count more or have stricter limits)
+-- Method-based weights or limits
 _M.method_multipliers = {
     POST = 2,    -- POST requests consume 2 tokens
     PUT = 2,
@@ -106,7 +133,7 @@ _M.bad_bots = {
     "python%-requests",
     "go%-http%-client",
     "scrapy",
-    "curl",                   -- Can be exempted via whitelist if needed
+    "curl",
 }
 
 -- Trusted Proxies / Upstream IPs
