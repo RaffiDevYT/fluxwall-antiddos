@@ -24,19 +24,25 @@ else
 fi
 echo ""
 
-# Test 3: Prometheus Metrics Exporter
-echo "[Test 3] Prometheus Metrics (/metrics)..."
+# Test 3: GeoIP Country Detection Header
+echo "[Test 3] GeoIP Country Header..."
+country=$(curl -s -I "$GATEWAY_URL/" | grep -i "X-Country-Code" | tr -d '\r')
+echo "  -> $country"
+echo ""
+
+# Test 4: Prometheus Metrics Exporter
+echo "[Test 4] Prometheus Metrics (/metrics)..."
 metrics_sample=$(curl -s "$GATEWAY_URL/metrics" | head -n 8)
 echo "$metrics_sample"
 echo ""
 
-# Test 4: Admin REST API Stats
-echo "[Test 4] Admin REST API (/api/admin/stats)..."
+# Test 5: Admin REST API Stats
+echo "[Test 5] Admin REST API (/api/admin/stats)..."
 curl -s -H "X-Admin-Key: $ADMIN_KEY" "$GATEWAY_URL/api/admin/stats"
 echo -e "\n"
 
-# Test 5: Rate Limiting Burst
-echo "[Test 5] Rapid burst requests..."
+# Test 6: Rate Limiting Burst
+echo "[Test 6] Rapid burst requests..."
 status_200=0
 status_503=0
 for i in {1..30}; do
