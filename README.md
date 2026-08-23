@@ -1,36 +1,193 @@
-# 🌊 FluxWall - Nginx-Lua Anti-DDoS & Edge Rate Limiting Gateway
+<div align="center">
 
-> **"Intelligent Edge Flow & Flood Control. Zero Backend Impact."**  
-> High-performance Layer 7 Anti-DDoS, Adaptive Traffic Shaper, and Bot Mitigation Gateway built on OpenResty (Nginx + LuaJIT) & Redis.
+# 🌊 FluxWall
+
+**High-Performance Layer 7 Anti-DDoS, Adaptive Traffic Shaper & Bot Mitigation Reverse Proxy Gateway**
+
+[![OpenResty](https://img.shields.io/badge/OPENRESTY-1.25.3-00758F?style=for-the-badge&logo=nginx&logoColor=white)](https://openresty.org/)
+[![Nginx](https://img.shields.io/badge/NGINX-CORE-009639?style=for-the-badge&logo=nginx&logoColor=white)](https://nginx.org/)
+[![LuaJIT](https://img.shields.io/badge/LUAJIT-2.1-000080?style=for-the-badge&logo=lua&logoColor=white)](https://luajit.org/)
+[![Redis](https://img.shields.io/badge/REDIS-7_ALPINE-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/DOCKER-READY-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Prometheus](https://img.shields.io/badge/PROMETHEUS-METRICS-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.0.0-emerald.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
+[![Status](https://img.shields.io/badge/Status-Active%20%26%20Production%20Ready-brightgreen.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
+[![Protection](https://img.shields.io/badge/Mitigation-Layer%207%20Zero--Backend%20Impact-crimson.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
+
+**Ultra-fast edge defense built on OpenResty (Nginx + LuaJIT) & Redis to shield web backends from abusive HTTP floods, botnets, scanners, and brute-force attacks.**
+
+[Overview](#-overview) • [Key Features](#-key-features) • [Architecture](#-architecture--request-flow) • [Quick Install](#-quick-install-1-line-vps-installer) • [Web Dashboard](#-web-admin-dashboard-admin) • [Documentation](#-panduan-lengkap-pemasangan-di-vps-linux) • [License](#-license)
 
 ---
 
-## 💡 Filosofi & Makna Nama Proyek (**FluxWall**)
+</div>
 
-* **Flux ( /ˈflʌks/ )**: Melambangkan aliran arus trafik data berkecepatan tinggi yang dinamis dan terus berubah. Dalam fisika dan komputasi jaringan, *flux* menggambarkan laju perpindahan volume data per satuan waktu.
-* **Wall**: Menggambarkan tembok pertahanan kokoh di lapisan terdepan (*edge perimeter*) yang mampu meredam dan memecah gelombang pasang banjir trafik (*HTTP Flood, Slowloris, Brute Force*) sebelum menyentuh server aplikasi backend.
+## 💡 Overview
 
-Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengontrol dan menstabilkan aliran trafik secara adaptif (*Adaptive Traffic Shaper*) dengan latensi sub-milidetik.
+**FluxWall** is a modern, enterprise-grade edge security reverse proxy designed to intercept and neutralize malicious Layer-7 traffic before it can ever reach your backend application servers (*PHP, Node.js, Python, Go, Laravel, WordPress, etc.*).
+
+By integrating **OpenResty (Nginx + LuaJIT)** with an asynchronous **Redis 7** backend and **L1 Worker In-Memory Dictionaries (`lua_shared_dict`)**, FluxWall executes request inspection, bot fingerprinting, and rate limiting in **under 0.5 milliseconds** with zero backend CPU/RAM exhaustion.
+
+> [!TIP]
+> **Cloudflare Alternative for Self-Hosted Infrastructure**: FluxWall includes a built-in **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**, neutralizing 99.9% of automated HTTP flood scripts, Slowloris attacks, and vulnerability scanners.
 
 ---
 
 ## 🚀 Key Features
 
-* **Sub-Millisecond Processing**: LuaJIT executes asynchronously inside Nginx worker event loops with minimal CPU/RAM overhead.
-* **L1 In-Memory Fast Cache (`lua_shared_dict`)**: Microsecond-level lookups for active blacklists and whitelists, offloading Redis from direct flood traffic.
-* **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**: Automated browser verification using client-side SHA-256 computation and HMAC-signed cookies (`__fluxwall_token`), neutralizing 99.9% of dumb HTTP flood bots.
-* **GeoIP Country & ASN/Datacenter Filtering (`ipinfo.io` API)**: Granular access control by country (Whitelist / Blacklist mode) with upstream CDN support and non-blocking `https://ipinfo.io` API integration (with 7-day Redis persistent caching & cloud datacenter botnet detection).
-* **Bad Bot & Vulnerability Scanner Blocker**: Automatically drops requests from attack tools (*sqlmap, nikto, dirbuster, masscan, nmap, exploit path probes*).
-* **Lightweight WAF & Exploit Sanitizer**: High-speed edge regex filtering for SQL Injection (`UNION SELECT`), Cross-Site Scripting (`<script>`, `document.cookie`), Remote Code Execution (`eval()`, `base64_decode()`), and Path Traversal (`/etc/passwd`).
-* **Slowloris & Range Attack Defense**: Inspects and drops multi-part byte-range flood exploits before socket exhaustion.
-* **Adaptive Surge Mode (Global Auto-Tuning)**: Detects sudden massive traffic spikes and automatically tightens rate limits across all incoming IPs until traffic normalizes.
-* **Prometheus Metrics Exporter (`/metrics`)**: Exposes native Prometheus metrics for scraping by Prometheus and Grafana.
-* **Web Admin Dashboard (`/admin/`)**: Real-time dark-mode GUI with live QPS charts, active ban management, whitelist manager, and quick controls.
-* **Protected Admin REST API (`/api/admin/*`)**: Programmatic API to ban/unban IPs, manage lists, and retrieve gateway health metrics.
-* **Per-IP & Endpoint-Specific Rate Limiting**: Sliding/fixed time window counters in Redis with burst handling & HTTP method token multipliers (e.g. `POST` counts 2x).
-* **Automated Temporary Banning (Auto-Ban)**: Automatically bans offending IPs for a configurable duration (e.g. 15 minutes) after repeated infractions.
-* **Fail-Open Architecture**: Gracefully allows legitimate traffic through if Redis is temporarily unreachable or times out, avoiding a Single Point of Failure (SPOF).
-* **Accurate Real IP Extraction**: Supports Cloudflare (`CF-Connecting-IP`), `X-Forwarded-For`, and `X-Real-IP`.
+| Feature | Description |
+| :--- | :--- |
+| ⚡ **Sub-Millisecond Latency** | Non-blocking asynchronous LuaJIT execution directly inside Nginx event loops (< 0.5 ms overhead). |
+| 🧠 **L1 In-Memory Fast Cache** | `lua_shared_dict` local caching for whitelist/blacklist lookups, offloading Redis during heavy floods. |
+| 🛡️ **JavaScript PoW Challenge** | Cloudflare-style *"Under Attack Mode"* with client-side SHA-256 computation and HMAC-signed access cookies. |
+| 🌍 **GeoIP & Cloud ASN Filter** | Country whitelist/blacklist with `https://ipinfo.io` API integration & datacenter botnet blocker (AWS, DO, Hetzner). |
+| 🤖 **Bad Bot & Scanner Filter** | Drops vulnerability scanners (*sqlmap, nikto, dirbuster, masscan, nmap, exploit probes*) instantly. |
+| 💉 **Lightweight WAF Sanitizer** | Fast regex filter for SQL Injection (`UNION SELECT`), XSS (`<script>`), RCE (`eval()`), and Path Traversal (`/etc/passwd`). |
+| 🌊 **Adaptive Surge Mode** | Automatically detects global traffic spikes and tightens per-IP limits dynamically until traffic normalizes. |
+| 📊 **Web Admin Dashboard** | Modern dark-mode SPA featuring real-time Chart.js QPS streaming and 1-click ban/unban controls. |
+| 🔌 **Protected REST API** | Programmatic endpoints (`/api/admin/*`) for SIEM, webhooks, and automated IP list management. |
+| 📈 **Prometheus Metrics** | Native `/metrics` scrape endpoint for Prometheus & Grafana monitoring. |
+| ⏳ **Sliding Window Rate Limit** | Atomic Redis counters with burst allowances and HTTP method token weights (POST/PUT counts 2x). |
+| 🚫 **Automated Temporary Ban** | Offending IPs exceeding violation thresholds are automatically quarantined (default 15 minutes). |
+| 🔒 **Fail-Open Resilience** | Gracefully passes legitimate traffic if Redis experiences transient timeouts, preventing SPOF. |
+
+---
+
+## 🏗️ Architecture & Request Flow
+
+```mermaid
+flowchart TD
+    Client([Incoming Request / Attacker]) --> Nginx[🌊 FluxWall Edge Gateway]
+    
+    subgraph "Edge Inspection Pipeline (access_by_lua)"
+        ExtractIP[1. Extract Real IP & Headers]
+        WhitelistCheck{2. Whitelisted IP?}
+        BotCheck{3. Bad Bot / Scanner / WAF Check}
+        GeoCheck{4. GeoIP & ASN Policy Check}
+        BlacklistCheck{5. Blacklist / Active Ban Check}
+        PoWCheck{6. Under Attack Mode / PoW Valid?}
+        RateLimitCheck{7. Sliding-Window Rate Limit & Surge Check}
+    end
+
+    Nginx --> ExtractIP
+    ExtractIP --> WhitelistCheck
+    WhitelistCheck -->|Yes| Backend[🛡️ Upstream Application Backend]
+    WhitelistCheck -->|No| BotCheck
+
+    BotCheck -->|Threat Detected| Drop403[❌ 403 Forbidden: WAF/Bot Blocked]
+    BotCheck -->|Clean| GeoCheck
+
+    GeoCheck -->|Country Blocked| DropGeo[❌ 403 Forbidden: GEO_BLOCKED]
+    GeoCheck -->|Allowed| BlacklistCheck
+
+    BlacklistCheck -->|Banned / Blacklisted| DropBan[❌ 403 Forbidden: IP Blacklisted]
+    BlacklistCheck -->|Clean| PoWCheck
+
+    PoWCheck -->|Challenge Required| ChallengePage[📄 Serve JS PoW Challenge Screen]
+    PoWCheck -->|Token Verified / Disabled| RateLimitCheck
+
+    RateLimitCheck -->|Exceeded Limit| Drop503[⚠️ 503 Too Many Requests + Log Violation]
+    Drop503 --> AutoBanCheck{Repeated Infractions?}
+    AutoBanCheck -->|>= 5 Strikes| AutoBanTrigger[🚫 Auto-Ban IP for 15 Mins in Redis & L1]
+    
+    RateLimitCheck -->|Within Limit| Backend
+
+    RateLimitCheck <--> Redis[(Redis State Store)]
+    BlacklistCheck <--> Redis
+    AutoBanTrigger <--> Redis
+```
+
+---
+
+## ⚡ Quick Install (1-Line VPS Installer)
+
+Install the entire FluxWall stack on any Linux VPS (**Ubuntu, Debian, CentOS, AlmaLinux**) with a **single command**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
+```
+
+> **What the installer automates:**
+> 1. ✅ Detects OS and automatically installs **Docker & Docker Compose** if missing.
+> 2. ✅ Prompts for your application's upstream backend host/port (*e.g., `host.docker.internal:3000`*).
+> 3. ✅ Generates a secure, random **Admin API Secret Key**.
+> 4. ✅ Applies **Linux Kernel Anti-DDoS sysctl hardening** for SYN flood protection and socket buffer tuning.
+> 5. ✅ Installs the global **`fluxwall` CLI** utility in `/usr/local/bin/fluxwall`.
+> 6. ✅ Builds and boots all containers automatically via `docker compose up -d`.
+
+---
+
+## 🛠️ Gateway CLI Management (`fluxwall`)
+
+Manage your edge security directly from your VPS terminal:
+
+```bash
+fluxwall status                     # View container health, QPS, and active ban statistics
+fluxwall logs                       # Stream live security events and access logs
+fluxwall ban 192.168.1.50 600       # Ban an IP temporarily for 10 minutes (600s)
+fluxwall unban 192.168.1.50         # Unban an IP immediately
+fluxwall whitelist 203.0.113.10     # Add an IP to Whitelist (bypasses all rate limits)
+fluxwall blacklist 198.51.100.22    # Add an IP to Permanent Blacklist
+fluxwall reload                     # Zero-downtime Nginx/Lua configuration reload
+fluxwall restart                    # Restart gateway containers
+fluxwall uninstall                  # Cleanly remove all FluxWall containers and files
+```
+
+---
+
+## 🖥️ Web Admin Dashboard (`/admin/`)
+
+Access the real-time security dashboard in your browser:
+```text
+http://YOUR_VPS_IP:8080/admin/   (or https://yourdomain.com/admin/)
+```
+
+* **Live Streaming QPS Meter**: Visual real-time graph of global queries per second powered by Chart.js.
+* **Surge Defense Badge**: Live visual indicator when adaptive rate-tightening is actively mitigating floods.
+* **1-Click IP Management**: Search, inspect remaining TTLs, and unban quarantined IPs with a single click.
+* **Dynamic Rule Controls**: Add IPs to Whitelists or Permanent Blacklists in real-time without restarting Nginx.
+
+---
+
+## 🔌 Protected Admin REST API (`/api/admin/*`)
+
+Authenticate using the header `X-Admin-Key: <SECRET_KEY>` or query parameter `?api_key=...`:
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/admin/stats` | Retrieve global QPS, active ban counts, and Surge Mode state |
+| `GET` | `/api/admin/bans` | List all quarantined IPs with remaining TTL seconds |
+| `POST` | `/api/admin/bans` | Manually ban an IP: `{"ip": "1.2.3.4", "duration_sec": 600, "reason": "Attack"}` |
+| `DELETE` | `/api/admin/bans?ip=1.2.3.4` | Unban an IP immediately |
+| `GET` | `/api/admin/whitelist` | List all whitelisted IP addresses |
+| `POST` | `/api/admin/whitelist` | Whitelist an IP: `{"ip": "203.0.113.5"}` |
+| `DELETE` | `/api/admin/whitelist?ip=203.0.113.5` | Remove an IP from Whitelist |
+| `GET` | `/api/admin/blacklist` | List all permanently blacklisted IPs |
+| `POST` | `/api/admin/blacklist` | Add an IP to Permanent Blacklist |
+| `DELETE` | `/api/admin/blacklist?ip=...` | Remove an IP from Blacklist |
+
+---
+
+## 📊 Prometheus Integration (`/metrics`)
+
+Add FluxWall to your `prometheus.yml` configuration:
+
+```yaml
+scrape_configs:
+  - job_name: 'fluxwall_gateway'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['YOUR_SERVER_IP:8080']
+```
+
+**Exported Metrics:**
+* `gateway_http_requests_total{status, protection, method}`
+* `gateway_blocked_requests_total{reason}`
+* `gateway_surge_mode_active`
+* `gateway_global_qps`
+* `gateway_active_bans`
 
 ---
 
@@ -39,41 +196,42 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 ```text
 .
 ├── admin/                      # Web Admin Dashboard SPA
-│   ├── index.html              # Modern Cyber Dashboard UI
-│   ├── app.js                  # Live chart, polling, and REST API controller
-│   └── style.css               # Glassmorphism dark-theme styling
-├── bin/                        # CLI Binaries & Utilities
-│   └── fluxwall.sh             # Gateway management CLI utility
+│   ├── index.html              # Cyber Defense UI Layout
+│   ├── app.js                  # Live streaming Chart.js & REST API controller
+│   └── style.css               # Dark-mode glassmorphism styling
+├── bin/                        # Binary & Utility Scripts
+│   └── fluxwall.sh             # Gateway management CLI tool
 ├── conf/                       # Nginx Configuration
-│   ├── nginx.conf              # Nginx OpenResty configuration (routes, shared dicts)
+│   ├── nginx.conf              # Main reverse proxy configuration & shared memory zones
 │   └── mime.types              # MIME types definitions
-├── docker/                     # Mock backend & container definitions
+├── docker/                     # Mock backend container
 │   └── backend/
 │       └── server.js
 ├── docs/                       # Comprehensive Documentation
-│   └── TUTORIAL_VPS.md         # Panduan deployment VPS lengkap
-├── lua/                        # Lua Security Modules
-│   ├── config.lua              # System configuration (limits, Redis config, auto-ban, bot signatures)
+│   └── TUTORIAL_VPS.md         # Full manual Linux VPS deployment guide
+├── lua/                        # Modular Lua Security Engine
+│   ├── admin_api.lua           # Protected Admin REST API router
+│   ├── auto_ban.lua            # Infraction tracker & auto-ban trigger
+│   ├── blacklist.lua           # Blacklist & temporary ban verifier
+│   ├── bot_filter.lua          # Bad bot, scanner, and WAF exploit sanitizer
+│   ├── challenge.lua           # JavaScript PoW challenge generator & HMAC verifier
+│   ├── config.lua              # Centralized configuration & thresholds
+│   ├── gateway.lua             # Master access_by_lua pipeline orchestrator
+│   ├── geoip.lua               # GeoIP country resolver & ipinfo.io integration
+│   ├── logger.lua              # Structured JSON security event logger
+│   ├── metrics.lua             # Prometheus metrics collector & exporter
+│   ├── rate_limiter.lua        # Sliding-window rate limiter with method multipliers
 │   ├── redis_pool.lua          # Safe Redis connection pool with keepalive & fail-open
-│   ├── ip_extractor.lua        # Client IP resolver (Cloudflare, XFF, X-Real-IP)
-│   ├── bot_filter.lua          # Bad bot, scanner, and exploit probe filter
-│   ├── surge_protector.lua     # Global QPS tracker and adaptive rate scaler
-│   ├── metrics.lua             # Prometheus metrics collector & text exporter
-│   ├── admin_api.lua           # Protected REST API for gateway administration
-│   ├── whitelist.lua           # Whitelist logic (L1 cache + Redis set)
-│   ├── blacklist.lua           # Blacklist & Temporary Ban logic
-│   ├── rate_limiter.lua        # Dynamic rate limiting per IP & endpoint (with method weights)
-│   ├── auto_ban.lua            # Infraction counter and automated banning
-│   ├── gateway.lua             # Master pipeline entrypoint (access_by_lua)
-│   └── logger.lua              # Structured security event logger
+│   ├── surge_protector.lua     # Global QPS tracker & adaptive rate scaler
+│   └── whitelist.lua           # IP whitelist fast bypass verifier
 ├── scripts/                    # Automation Scripts
-│   ├── install.sh              # Interactive 1-line automated installer
-│   └── uninstall.sh            # Clean automated uninstaller
+│   ├── install.sh              # 1-Line automated VPS installer
+│   └── uninstall.sh            # Clean uninstaller script
 ├── test/                       # Automated Test Suites
-│   ├── test_rate_limit.ps1     # Extended PowerShell automated test suite
-│   └── test_rate_limit.sh      # Extended Bash automated test suite
-├── Dockerfile                  # OpenResty custom Docker build
-├── docker-compose.yml          # Multi-container stack (Gateway, Redis, Mock Backend)
+│   ├── test_rate_limit.ps1     # PowerShell automated test suite
+│   └── test_rate_limit.sh      # Bash automated test suite
+├── Dockerfile                  # Custom OpenResty Docker build
+├── docker-compose.yml          # Multi-container stack (Gateway, Redis, Backend)
 ├── install.sh                  # Quick install entrypoint
 ├── uninstall.sh                # Quick uninstall entrypoint
 ├── LICENSE                     # MIT License
@@ -82,203 +240,21 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 
 ---
 
-## ⚡ Quick Install (1-Line Command untuk VPS Linux)
-
-Cukup jalankan **1 baris perintah** ini di terminal VPS Anda (Ubuntu / Debian / CentOS / AlmaLinux):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
-```
-
-> **Apa yang dilakukan installer otomatis ini?**
-> 1. Otomatis mendeteksi sistem dan menginstall Docker & Docker Compose jika belum ada.
-> 2. Menanyakan Host/Port target backend Anda (misal `host.docker.internal:3000` atau IP lokal).
-> 3. Meng-generate **Admin Secret Key** acak yang aman.
-> 4. Mengoptimalkan **Kernel Linux sysctl** untuk proteksi Anti-SYN flood dan buffer koneksi.
-> 5. Memasang tool CLI `fluxwall` secara global di VPS.
-> 6. Menjalankan seluruh container secara otomatis dengan `docker compose up -d`.
-
----
-
-## 🗑️ Cara Uninstall FluxWall
-
-Jika Anda ingin menghapus FluxWall beserta containernya secara bersih dari VPS, gunakan salah satu cara berikut:
-
-```bash
-# Opsi 1: Menggunakan CLI fluxwall
-fluxwall uninstall
-
-# Opsi 2: 1-Line command via curl
-curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/uninstall.sh | sudo bash
-```
-
----
-
-## 🛠️ Manajemen Cepat via CLI (`fluxwall`)
-
-Setelah terpasang, Anda dapat mengelola gateway langsung dari terminal VPS:
-
-| Perintah | Deskripsi |
-| :--- | :--- |
-| `fluxwall status` | Melihat status container, QPS, dan jumlah ban aktif |
-| `fluxwall logs` | Melihat streaming log serangan & akses real-time |
-| `fluxwall ban <ip> [ttl] [alasan]` | Memblokir IP sementara (default 900 detik / 15 menit) |
-| `fluxwall unban <ip>` | Membuka blokir IP |
-| `fluxwall whitelist <ip>` | Menambahkan IP ke Whitelist (bypass rate limit) |
-| `fluxwall blacklist <ip>` | Menambahkan IP ke Blacklist Permanen |
-| `fluxwall reload` | Reload konfigurasi Nginx/Lua tanpa downtime |
-| `fluxwall restart` | Restart seluruh layanan gateway & Redis |
-| `fluxwall uninstall` | Menghapus seluruh container & konfigurasi FluxWall |
-
----
-
-## 📖 Panduan Manual Pemasangan di VPS Linux (Ubuntu / Debian)
-
-Jika Anda ingin melakukan instalasi secara manual langkah demi langkah:
-
-### 1. Update VPS & Install Docker
-Login ke VPS via SSH, lalu jalankan:
-```bash
-# Update sistem
-apt update && apt upgrade -y
-
-# Install Docker Engine & Docker Compose
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-apt install -y docker-compose-plugin
-```
-
-### 2. Clone Repository FluxWall
-```bash
-git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git /opt/antiddos
-cd /opt/antiddos
-```
-
-### 3. Sesuaikan Konfigurasi Produksi
-Buka `docker-compose.yml`:
-```bash
-nano docker-compose.yml
-```
-* Ubah port ke port web publik: `"80:80"` dan `"443:443"`.
-* Ganti `ADMIN_API_KEY` dengan password rahasia yang kuat.
-
-Buka `conf/nginx.conf` untuk menghubungkan ke backend aplikasi Anda:
-```bash
-nano conf/nginx.conf
-```
-Arahkan blok `upstream backend_servers` ke port aplikasi backend Anda (misal Node.js/PHP di port 3000):
-```nginx
-upstream backend_servers {
-    server host.docker.internal:3000 max_fails=3 fail_timeout=10s;
-    keepalive 64;
-}
-```
-
-### 4. Jalankan FluxWall Gateway
-```bash
-docker compose up -d --build
-```
-
-### 5. Setup SSL / HTTPS Gratis (Let's Encrypt / Certbot)
-```bash
-apt install -y certbot
-docker stop antiddos_gateway
-certbot certonly --standalone -d domainanda.com -d www.domainanda.com
-docker compose up -d
-```
-
-### 6. Tuning Kernel Linux VPS (Ketahanan Anti-DDoS)
-Jalankan perintah ini di VPS untuk mengoptimalkan socket & antrian koneksi sistem:
-```bash
-cat << 'EOF' >> /etc/sysctl.conf
-net.ipv4.tcp_syncookies = 1
-net.ipv4.tcp_max_syn_backlog = 65535
-net.core.somaxconn = 65535
-net.core.netdev_max_backlog = 65535
-net.ipv4.ip_local_port_range = 1024 65535
-net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_fin_timeout = 15
-fs.file-max = 2097152
-EOF
-
-sysctl -p
-```
-
----
-
-## 🖥️ Web Admin Dashboard (`/admin/`)
-
-Buka browser Anda dan akses:
-```text
-http://IP_VPS_ANDA/admin/   (atau https://domainanda.com/admin/)
-```
-* **Real-time Live QPS Chart**: Memantau volume trafik per detik secara streaming.
-* **Surge Mode Indicator**: Menampilkan status pertahanan lonjakan trafik secara otomatis.
-* **1-Click IP Unban**: Membuka blokir IP yang terkena auto-ban langsung dari UI.
-* **Whitelist & Blacklist Manager**: Menambah/menghapus IP tanpa perlu reload Nginx.
-
----
-
-## 🔌 Admin REST API Endpoints (`/api/admin/*`)
-
-Gunakan header `X-Admin-Key: <SECRET_KEY>` atau query parameter `?api_key=...`:
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/admin/stats` | Status global QPS, active bans, status Surge Mode |
-| `GET` | `/api/admin/bans` | Daftar IP yang sedang di-ban beserta sisa waktu TTL |
-| `POST` | `/api/admin/bans` | Ban manual: `{"ip": "1.2.3.4", "duration_sec": 600, "reason": "Attack"}` |
-| `DELETE` | `/api/admin/bans?ip=1.2.3.4` | Unban IP secara instan |
-| `GET` | `/api/admin/whitelist` | Daftar IP yang masuk whitelist |
-| `POST` | `/api/admin/whitelist` | Tambah IP ke whitelist: `{"ip": "203.0.113.5"}` |
-| `DELETE` | `/api/admin/whitelist?ip=203.0.113.5` | Hapus IP dari whitelist |
-| `GET` | `/api/admin/blacklist` | Daftar IP blacklist permanen |
-| `POST` | `/api/admin/blacklist` | Tambah IP ke blacklist permanen |
-| `DELETE` | `/api/admin/blacklist?ip=...` | Hapus IP dari blacklist |
-
----
-
-## 📊 Prometheus Integration (`/metrics`)
-
-Tambahkan ke konfigurasi `prometheus.yml`:
-```yaml
-scrape_configs:
-  - job_name: 'fluxwall_gateway'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['gateway:80']
-```
-
----
-
 ## 🧪 Testing & Verification
 
-### PowerShell (Windows):
-```powershell
+Execute the automated test suite to verify healthchecks, bad bot blocking, WAF sanitization, GeoIP headers, and rate limiting:
+
+```bash
+# On Linux / macOS:
+bash test/test_rate_limit.sh
+
+# On Windows (PowerShell):
 .\test\test_rate_limit.ps1
 ```
-
-### Bash (Linux / macOS):
-```bash
-bash test/test_rate_limit.sh
-```
-
----
-
-## ⚙️ Configuration Reference (`lua/config.lua`)
-
-| Option | Description | Default |
-| :--- | :--- | :--- |
-| `admin.api_key` | Secret key untuk Web Dashboard dan REST API | `super-secret-admin-key-2026` |
-| `surge_mode.enabled` | Mengaktifkan perlindungan lonjakan trafik global | `true` |
-| `surge_mode.qps_threshold` | Ambang batas QPS pemicu Surge Mode | `200` req/s |
-| `surge_mode.rate_scale_factor` | Faktor pengetatan rate limit saat lonjakan | `0.5` (50%) |
-| `default_limit.max_requests` | Batas request global per IP per detik | `20` |
-| `default_limit.burst` | Toleransi burst sebelum dikembalikan `503` | `5` |
-| `auto_ban.max_violations` | Batas pelanggaran sebelum terkena Auto-Ban | `5` |
-| `auto_ban.ban_duration_sec`| Durasi Auto-Ban dalam detik | `900` (15 menit) |
 
 ---
 
 ## 📄 License
-MIT License - Copyright (c) 2026 [RaffiDevYT](https://github.com/RaffiDevYT)
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.  
+Copyright (c) 2026 [RaffiDevYT](https://github.com/RaffiDevYT).
