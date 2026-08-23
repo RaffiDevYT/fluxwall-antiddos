@@ -38,10 +38,17 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 │   ├── index.html              # Modern Cyber Dashboard UI
 │   ├── app.js                  # Live chart, polling, and REST API controller
 │   └── style.css               # Glassmorphism dark-theme styling
-├── conf/
+├── bin/                        # CLI Binaries & Utilities
+│   └── fluxwall.sh             # Gateway management CLI utility
+├── conf/                       # Nginx Configuration
 │   ├── nginx.conf              # Nginx OpenResty configuration (routes, shared dicts)
 │   └── mime.types              # MIME types definitions
-├── lua/
+├── docker/                     # Mock backend & container definitions
+│   └── backend/
+│       └── server.js
+├── docs/                       # Comprehensive Documentation
+│   └── TUTORIAL_VPS.md         # Panduan deployment VPS lengkap
+├── lua/                        # Lua Security Modules
 │   ├── config.lua              # System configuration (limits, Redis config, auto-ban, bot signatures)
 │   ├── redis_pool.lua          # Safe Redis connection pool with keepalive & fail-open
 │   ├── ip_extractor.lua        # Client IP resolver (Cloudflare, XFF, X-Real-IP)
@@ -55,15 +62,14 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 │   ├── auto_ban.lua            # Infraction counter and automated banning
 │   ├── gateway.lua             # Master pipeline entrypoint (access_by_lua)
 │   └── logger.lua              # Structured security event logger
-├── docker/
-│   └── backend/                # Mock upstream backend server (Node.js)
-│       └── server.js
-├── test/
+├── scripts/                    # Automation Scripts
+│   └── install.sh              # Interactive 1-line automated installer
+├── test/                       # Automated Test Suites
 │   ├── test_rate_limit.ps1     # Extended PowerShell automated test suite
 │   └── test_rate_limit.sh      # Extended Bash automated test suite
 ├── Dockerfile                  # OpenResty custom Docker build
 ├── docker-compose.yml          # Multi-container stack (Gateway, Redis, Mock Backend)
-├── TUTORIAL_VPS.md             # Panduan deployment VPS lengkap
+├── install.sh                  # Quick install entrypoint
 ├── LICENSE                     # MIT License
 └── README.md
 ```
