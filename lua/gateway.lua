@@ -5,8 +5,11 @@ local rate_limiter = require "rate_limiter"
 local auto_ban = require "auto_ban"
 local bot_filter = require "bot_filter"
 local surge_protector = require "surge_protector"
+local geoip = require "geoip"
+local challenge = require "challenge"
 local metrics = require "metrics"
 local logger = require "logger"
+local config = require "config"
 local cjson = require "cjson.safe"
 
 -- 1. Extract Real Client IP & Request Metadata
@@ -54,7 +57,36 @@ if is_bad_bot then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 5. Step: IP Blacklist & Temporary Ban Check
+-- 5. Step: GeoIP Country Filtering
+local geo_allowed, country_code, geo_reason = geoip.check_country(client_ip)
+if not geo_allowed then
+    metrics.inc("gateway_blocked_requests_total", { reason = "geo_blocked" })
+    metrics.inc("gateway_http_requests_total", { status = "403", protection = "geo_blocked", method = method })
+
+    logger.log_event("GEO_BLOCKED", {
+        client_ip = client_ip,
+        uri = uri,
+        reason = geo_reason,
+        meta = { country = country_code }
+    })
+
+    ngx.status = ngx.HTTP_FORBIDDEN
+    ngx.header["Content-Type"] = "application/json; charset=utf-8"
+    ngx.header["X-Gateway-Protection"] = "geo-block"
+    
+    local resp = {
+        error = "Forbidden",
+        message = "Access from your geographic region is restricted.",
+        client_ip = client_ip,
+        country = country_code,
+        reason = geo_reason,
+        timestamp = ngx.time()
+    }
+    ngx.say(cjson.encode(resp))
+    return ngx.exit(ngx.HTTP_FORBIDDEN)
+end
+
+-- 6. Step: IP Blacklist & Temporary Ban Check
 local is_blocked, block_reason, remaining_ttl = blacklist.is_blacklisted(client_ip)
 if is_blocked then
     metrics.inc("gateway_blocked_requests_total", { reason = "blacklisted" })
@@ -86,7 +118,19 @@ if is_blocked then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 6. Step: Dynamic Rate Limit Check (with Surge Mode awareness)
+-- 7. Step: JavaScript Proof-of-Work (PoW) Challenge / Under Attack Mode
+local should_challenge = (config.challenge and config.challenge.enabled) or 
+                         (config.challenge and config.challenge.auto_trigger_on_surge and is_surge)
+
+if should_challenge and not challenge.has_valid_token(client_ip) then
+    -- Only challenge HTML/page navigation requests, not AJAX API calls
+    local accept_header = ngx.req.get_headers()["accept"] or ""
+    if accept_header:find("text/html") or accept_header == "*/*" or accept_header == "" then
+        return challenge.serve_challenge(client_ip, uri)
+    end
+end
+
+-- 8. Step: Dynamic Rate Limit Check (with Surge Mode awareness)
 local allowed, current_reqs, max_limit, retry_after, rule_name, surge_active = rate_limiter.check(client_ip, uri, method)
 
 -- Provide standard rate limiting & surge indicators
@@ -94,6 +138,7 @@ local remaining = math.max(0, max_limit - current_reqs)
 ngx.header["X-RateLimit-Limit"] = tostring(max_limit)
 ngx.header["X-RateLimit-Remaining"] = tostring(remaining)
 ngx.header["X-RateLimit-Rule"] = rule_name
+ngx.header["X-Country-Code"] = country_code
 if surge_active then
     ngx.header["X-Gateway-Surge-Mode"] = "active"
 end
@@ -139,6 +184,6 @@ if not allowed then
     return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 
--- 7. Request is permitted to pass
+-- 9. Request is permitted to pass
 metrics.inc("gateway_http_requests_total", { status = "200", protection = "inspected-pass", method = method })
 ngx.header["X-Gateway-Protection"] = "inspected-pass"
