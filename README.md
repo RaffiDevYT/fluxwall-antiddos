@@ -21,6 +21,8 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 * **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**: Automated browser verification using client-side SHA-256 computation and HMAC-signed cookies (`__fluxwall_token`), neutralizing 99.9% of dumb HTTP flood bots.
 * **GeoIP Country & ASN/Datacenter Filtering (`ipinfo.io` API)**: Granular access control by country (Whitelist / Blacklist mode) with upstream CDN support and non-blocking `https://ipinfo.io` API integration (with 7-day Redis persistent caching & cloud datacenter botnet detection).
 * **Bad Bot & Vulnerability Scanner Blocker**: Automatically drops requests from attack tools (*sqlmap, nikto, dirbuster, masscan, nmap, exploit path probes*).
+* **Lightweight WAF & Exploit Sanitizer**: High-speed edge regex filtering for SQL Injection (`UNION SELECT`), Cross-Site Scripting (`<script>`, `document.cookie`), Remote Code Execution (`eval()`, `base64_decode()`), and Path Traversal (`/etc/passwd`).
+* **Slowloris & Range Attack Defense**: Inspects and drops multi-part byte-range flood exploits before socket exhaustion.
 * **Adaptive Surge Mode (Global Auto-Tuning)**: Detects sudden massive traffic spikes and automatically tightens rate limits across all incoming IPs until traffic normalizes.
 * **Prometheus Metrics Exporter (`/metrics`)**: Exposes native Prometheus metrics for scraping by Prometheus and Grafana.
 * **Web Admin Dashboard (`/admin/`)**: Real-time dark-mode GUI with live QPS charts, active ban management, whitelist manager, and quick controls.
