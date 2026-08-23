@@ -18,6 +18,8 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 
 * **Sub-Millisecond Processing**: LuaJIT executes asynchronously inside Nginx worker event loops with minimal CPU/RAM overhead.
 * **L1 In-Memory Fast Cache (`lua_shared_dict`)**: Microsecond-level lookups for active blacklists and whitelists, offloading Redis from direct flood traffic.
+* **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**: Automated browser verification using client-side SHA-256 computation and HMAC-signed cookies (`__fluxwall_token`), neutralizing 99.9% of dumb HTTP flood bots.
+* **GeoIP Country Filtering**: Granular access control by country (Whitelist / Blacklist mode) with upstream CDN (`CF-IPCountry`) support.
 * **Bad Bot & Vulnerability Scanner Blocker**: Automatically drops requests from attack tools (*sqlmap, nikto, dirbuster, masscan, nmap, exploit path probes*).
 * **Adaptive Surge Mode (Global Auto-Tuning)**: Detects sudden massive traffic spikes and automatically tightens rate limits across all incoming IPs until traffic normalizes.
 * **Prometheus Metrics Exporter (`/metrics`)**: Exposes native Prometheus metrics for scraping by Prometheus and Grafana.
