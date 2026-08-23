@@ -88,16 +88,17 @@ echo -e "        PENGATURAN KONFIGURASI FLUXWALL               "
 echo -e "======================================================${NC}"
 
 # Backend Target
-read -rp "$(echo -e "${YELLOW}Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}")" BACKEND_INPUT
+read -rp "$(echo -e "${YELLOW}Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}")" BACKEND_INPUT < /dev/tty
 BACKEND_TARGET=${BACKEND_INPUT:-"host.docker.internal:3000"}
 
 # Admin Secret Key
-DEFAULT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 24 | head -n 1)
-read -rp "$(echo -e "${YELLOW}Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}")" ADMIN_KEY_INPUT
+DEFAULT_SECRET=$(cat /dev/urandom 2>/dev/null | tr -dc 'a-zA-Z0-9' | fold -w 24 | head -n 1)
+[ -z "$DEFAULT_SECRET" ] && DEFAULT_SECRET="fluxwall_admin_$(date +%s)"
+read -rp "$(echo -e "${YELLOW}Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}")" ADMIN_KEY_INPUT < /dev/tty
 ADMIN_SECRET=${ADMIN_KEY_INPUT:-$DEFAULT_SECRET}
 
 # Rate Limit Max Requests
-read -rp "$(echo -e "${YELLOW}Batas Rate Limit per IP per detik [default: 20]: ${NC}")" RATE_INPUT
+read -rp "$(echo -e "${YELLOW}Batas Rate Limit per IP per detik [default: 20]: ${NC}")" RATE_INPUT < /dev/tty
 MAX_REQ=${RATE_INPUT:-20}
 
 echo -e "\n${YELLOW}[4/6] Menyimpan konfigurasi...${NC}"
