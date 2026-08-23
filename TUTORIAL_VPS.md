@@ -58,9 +58,18 @@ Gateway ini bertindak sebagai **Reverse Proxy Terdepan (Edge)** yang menerima se
 
 ---
 
-## 3. Metode 1: Pemasangan dengan Docker (Paling Direkomendasikan)
+## 3. Pemasangan Otomatis & Cepat (1-Line Installer)
 
-Metode ini paling bersih karena tidak mengotori konfigurasi host sistem dan mudah dipindahkan/di-update.
+Cara paling mudah dan cepat untuk memasang FluxWall di VPS Linux adalah menggunakan installer otomatis:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
+```
+Installer ini akan memandu Anda secara interaktif (meminta host backend, rate limit, dan otomatis memasang Docker, tuning kernel, serta CLI `fluxwall`).
+
+---
+
+## 4. Pemasangan Manual dengan Docker (Langkah demi Langkah)
 
 ### Langkah 3.1: Login SSH & Update VPS
 ```bash
