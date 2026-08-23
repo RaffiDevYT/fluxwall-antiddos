@@ -1,0 +1,96 @@
+name: FluxWall CI & Automated Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # 1. Automated Test Job
+  test:
+    name: Run Test Suite & Syntax Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Validate Shell Scripts
+        run: |
+          bash -n install.sh
+          bash -n scripts/install.sh
+          bash -n scripts/uninstall.sh
+          bash -n bin/fluxwall.sh
+          bash -n test/test_rate_limit.sh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Gateway Image
+        run: |
+          docker compose build
+
+      - name: Boot Stack & Healthcheck Verification
+        run: |
+          docker compose up -d
+          sleep 5
+          curl -s http://127.0.0.1:8080/healthz | grep -q "fluxwall-antiddos" && echo "Healthcheck PASSED!"
+          docker compose down
+
+  # 2. Automated Release Job (Triggers on Git Tags e.g. v1.0.0)
+  release:
+    name: Publish GitHub Release & Assets
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Create Release Tarball Archive
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          mkdir -p dist
+          tar -czvf dist/fluxwall-${VERSION}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            .
+
+      - name: Generate Checksums
+        run: |
+          cd dist
+          sha256sum fluxwall-*.tar.gz > SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## 🚀 FluxWall Production Release
+
+            ### 🛡️ What's Included:
+            * **Layer 7 Anti-DDoS Engine**: Sub-millisecond inspection powered by OpenResty (Nginx + LuaJIT).
+            * **Adaptive Surge Mode**: Real-time traffic shaper against massive HTTP flood spikes.
+            * **JavaScript PoW Challenge**: Automated *"Under Attack Mode"* with HMAC-signed verification cookies.
+            * **GeoIP & ASN Blocker**: Country whitelist/blacklist + `ipinfo.io` API integration.
+            * **Lightweight WAF & Scanner Defense**: Drops SQLi, XSS, RCE, and vulnerability scanners (*sqlmap, nikto, dirbuster*).
+            * **Slowloris & Range Attack Blocker**: Protects against byte-range flooding exploits.
+            * **Real-time Web Admin Dashboard**: Live streaming Chart.js QPS graphs & 1-click ban management.
+            * **1-Line VPS Quick Installer**: Automated setup on Ubuntu, Debian, CentOS, and AlmaLinux.
+
+            ### ⚡ 1-Line VPS Installation:
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
+            ```
