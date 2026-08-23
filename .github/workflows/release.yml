@@ -1,4 +1,4 @@
-name: FluxWall CI & Automated Release
+name: FluxWall CI & Multi-Package Release
 
 on:
   push:
@@ -23,6 +23,7 @@ jobs:
       - name: Validate Shell Scripts
         run: |
           bash -n install.sh
+          bash -n uninstall.sh
           bash -n scripts/install.sh
           bash -n scripts/uninstall.sh
           bash -n bin/fluxwall.sh
@@ -42,9 +43,9 @@ jobs:
           curl -s http://127.0.0.1:8080/healthz | grep -q "fluxwall-antiddos" && echo "Healthcheck PASSED!"
           docker compose down
 
-  # 2. Automated Release Job (Triggers on Git Tags e.g. v1.0.0)
+  # 2. Automated Multi-Package Builder & Release (DEB, RPM, TAR.GZ)
   release:
-    name: Publish GitHub Release & Assets
+    name: Build Packages (DEB, RPM, TAR.GZ) & Publish Release
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -55,21 +56,74 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Create Release Tarball Archive
+      - name: Install Packaging Tools (dpkg, rpm, alien)
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          sudo apt update
+          sudo apt install -y rpm alien
+
+      - name: Build Packages
+        run: |
+          RAW_VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${RAW_VERSION:-"1.0.0"}
           mkdir -p dist
-          tar -czvf dist/fluxwall-${VERSION}.tar.gz \
+
+          # 1. Build .tar.gz Source Archive
+          tar -czvf "dist/fluxwall-${VERSION}.tar.gz" \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='dist' \
             .
 
-      - name: Generate Checksums
-        run: |
-          cd dist
-          sha256sum fluxwall-*.tar.gz > SHA256SUMS
+          # 2. Build .deb Package (Debian / Ubuntu)
+          DEB_DIR="/tmp/fluxwall-deb"
+          mkdir -p "$DEB_DIR/DEBIAN"
+          mkdir -p "$DEB_DIR/opt/antiddos"
+          mkdir -p "$DEB_DIR/usr/local/bin"
 
-      - name: Create GitHub Release
+          # Copy project files into /opt/antiddos
+          cp -r admin bin conf docker docs lua scripts test Dockerfile docker-compose.yml install.sh uninstall.sh LICENSE README.md "$DEB_DIR/opt/antiddos/"
+          chmod +x "$DEB_DIR/opt/antiddos/bin/fluxwall.sh"
+          chmod +x "$DEB_DIR/opt/antiddos/scripts/"*.sh
+
+          # Create CLI symlink
+          ln -sf /opt/antiddos/bin/fluxwall.sh "$DEB_DIR/usr/local/bin/fluxwall"
+
+          # Create Debian Control File
+          cat << EOF > "$DEB_DIR/DEBIAN/control"
+          Package: fluxwall
+          Version: ${VERSION}
+          Section: net
+          Priority: optional
+          Architecture: all
+          Maintainer: RaffiDevYT <https://github.com/RaffiDevYT>
+          Description: High-Performance Layer-7 Anti-DDoS & Rate Limiting Gateway
+           FluxWall is a modern edge security reverse proxy gateway built on OpenResty
+           (Nginx + LuaJIT) and Redis with Adaptive Surge Protection and JS PoW Challenge.
+          EOF
+
+          # Create Debian Post-Install Hook
+          cat << 'EOF' > "$DEB_DIR/DEBIAN/postinst"
+          #!/bin/sh
+          chmod +x /opt/antiddos/bin/fluxwall.sh
+          chmod +x /opt/antiddos/scripts/*.sh
+          ln -sf /opt/antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
+          echo "FluxWall installed successfully in /opt/antiddos. Type 'fluxwall' to manage."
+          exit 0
+          EOF
+          chmod 755 "$DEB_DIR/DEBIAN/postinst"
+
+          # Build .deb
+          dpkg-deb --build "$DEB_DIR" "dist/fluxwall_${VERSION}-1_all.deb"
+
+          # 3. Build .rpm Package (RHEL / CentOS / AlmaLinux / Fedora)
+          alien --to-rpm --scripts "dist/fluxwall_${VERSION}-1_all.deb"
+          mv *.rpm dist/ 2>/dev/null || true
+
+          # 4. Generate SHA256 Checksums
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -80,17 +134,22 @@ jobs:
           body: |
             ## 🚀 FluxWall Production Release
 
-            ### 🛡️ What's Included:
-            * **Layer 7 Anti-DDoS Engine**: Sub-millisecond inspection powered by OpenResty (Nginx + LuaJIT).
-            * **Adaptive Surge Mode**: Real-time traffic shaper against massive HTTP flood spikes.
-            * **JavaScript PoW Challenge**: Automated *"Under Attack Mode"* with HMAC-signed verification cookies.
-            * **GeoIP & ASN Blocker**: Country whitelist/blacklist + `ipinfo.io` API integration.
-            * **Lightweight WAF & Scanner Defense**: Drops SQLi, XSS, RCE, and vulnerability scanners (*sqlmap, nikto, dirbuster*).
-            * **Slowloris & Range Attack Blocker**: Protects against byte-range flooding exploits.
-            * **Real-time Web Admin Dashboard**: Live streaming Chart.js QPS graphs & 1-click ban management.
-            * **1-Line VPS Quick Installer**: Automated setup on Ubuntu, Debian, CentOS, and AlmaLinux.
+            ### 📦 Included Package Builds:
+            * **Debian / Ubuntu Package**: `fluxwall_*.deb` *(Install via `sudo dpkg -i <file>.deb`)*
+            * **RHEL / CentOS / AlmaLinux Package**: `fluxwall-*.noarch.rpm` *(Install via `sudo rpm -ivh <file>.rpm`)*
+            * **Source Tarball**: `fluxwall-*.tar.gz`
 
-            ### ⚡ 1-Line VPS Installation:
+            ### 🛡️ Feature Highlights:
+            * **Layer 7 Anti-DDoS Engine**: OpenResty (Nginx + LuaJIT) + Redis 7 state store.
+            * **JavaScript PoW Challenge**: Cloudflare-style *"Under Attack Mode"* with SHA-256 WebCrypto solver.
+            * **GeoIP & ASN Blocker**: Country filtering with `https://ipinfo.io` API & Cloud Datacenter proxy blocker.
+            * **Lightweight WAF**: SQL Injection, XSS, RCE, and vulnerability scanner mitigations.
+            * **Slowloris Defense**: Byte-range attack filtering.
+            * **Adaptive Surge Mode**: Dynamic per-IP rate-tightening during massive traffic spikes.
+            * **Real-time Web Admin Dashboard**: Live streaming Chart.js QPS graphs & 1-click ban management.
+            * **CLI Utility**: `fluxwall` command for fast server management.
+
+            ### ⚡ 1-Line VPS Quick Install:
             ```bash
             curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
             ```
