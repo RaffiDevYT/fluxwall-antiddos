@@ -1,11 +1,7 @@
-# These are supported funding model platforms
+# Supported funding model platforms
 
 # GitHub Sponsors
 github: [RaffiDevYT]
 
-# Custom Donation Links (Saweria, Trakteer, PayPal)
-custom: [
-  'https://saweria.co/RaffiDevYT',
-  'https://trakteer.id/RaffiDevYT',
-  'https://paypal.me/RaffiDevYT'
-]
+# Custom Donation Link (Trakteer)
+custom: ['https://trakteer.id/raffidev/tip']
