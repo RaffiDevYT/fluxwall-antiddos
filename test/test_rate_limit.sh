@@ -24,6 +24,16 @@ else
 fi
 echo ""
 
+# Test 2B: Lightweight WAF Exploit Sanitizer (SQL Injection)
+echo "[Test 2B] WAF Exploit Sanitizer (?id=1 UNION SELECT 1,2,3)..."
+sqli_status=$(curl -s -o /dev/null -w "%{http_code}" "$GATEWAY_URL/?id=1%20UNION%20SELECT%201,2,3")
+if [ "$sqli_status" -eq 403 ]; then
+    echo "  -> SUCCESS: SQL Injection exploit blocked with 403 Forbidden!"
+else
+    echo "  -> FAILED: Got HTTP Status $sqli_status (Expected 403)"
+fi
+echo ""
+
 # Test 3: GeoIP Country Detection Header
 echo "[Test 3] GeoIP Country Header..."
 country=$(curl -s -I "$GATEWAY_URL/" | grep -i "X-Country-Code" | tr -d '\r')
