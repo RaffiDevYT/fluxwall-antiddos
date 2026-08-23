@@ -4,8 +4,14 @@
 #  🌊 FluxWall CLI - Gateway Management Utility
 # ==============================================================================
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$DIR" || exit 1
+# Determine project root directory (one level up from bin/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/../docker-compose.yml" ]; then
+    ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+    ROOT_DIR="$SCRIPT_DIR"
+fi
+cd "$ROOT_DIR" || exit 1
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
