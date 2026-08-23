@@ -70,9 +70,44 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 
 ---
 
-## 📖 Panduan Lengkap Pemasangan di VPS Linux (Ubuntu / Debian)
+## ⚡ Quick Install (1-Line Command untuk VPS Linux)
 
-Berikut adalah panduan langkah demi langkah untuk memasang **FluxWall** di server VPS publik Anda.
+Cukup jalankan **1 baris perintah** ini di terminal VPS Anda (Ubuntu / Debian / CentOS / AlmaLinux):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
+```
+
+> **Apa yang dilakukan installer otomatis ini?**
+> 1. Otomatis mendeteksi sistem dan menginstall Docker & Docker Compose jika belum ada.
+> 2. Menanyakan Host/Port target backend Anda (misal `host.docker.internal:3000` atau IP lokal).
+> 3. Meng-generate **Admin Secret Key** acak yang aman.
+> 4. Mengoptimalkan **Kernel Linux sysctl** untuk proteksi Anti-SYN flood dan buffer koneksi.
+> 5. Memasang tool CLI `fluxwall` secara global di VPS.
+> 6. Menjalankan seluruh container secara otomatis dengan `docker compose up -d`.
+
+---
+
+## 🛠️ Manajemen Cepat via CLI (`fluxwall`)
+
+Setelah terpasang, Anda dapat mengelola gateway langsung dari terminal VPS:
+
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `fluxwall status` | Melihat status container, QPS, dan jumlah ban aktif |
+| `fluxwall logs` | Melihat streaming log serangan & akses real-time |
+| `fluxwall ban <ip> [ttl] [alasan]` | Memblokir IP sementara (default 900 detik / 15 menit) |
+| `fluxwall unban <ip>` | Membuka blokir IP |
+| `fluxwall whitelist <ip>` | Menambahkan IP ke Whitelist (bypass rate limit) |
+| `fluxwall blacklist <ip>` | Menambahkan IP ke Blacklist Permanen |
+| `fluxwall reload` | Reload konfigurasi Nginx/Lua tanpa downtime |
+| `fluxwall restart` | Restart seluruh layanan gateway & Redis |
+
+---
+
+## 📖 Panduan Manual Pemasangan di VPS Linux (Ubuntu / Debian)
+
+Jika Anda ingin melakukan instalasi secara manual langkah demi langkah:
 
 ### 1. Update VPS & Install Docker
 Login ke VPS via SSH, lalu jalankan:
