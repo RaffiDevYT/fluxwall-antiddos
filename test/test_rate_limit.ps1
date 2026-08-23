@@ -32,8 +32,18 @@ try {
     }
 }
 
-# Test 3: Prometheus Metrics Exporter
-Write-Host "`n[Test 3] Testing Prometheus Metrics (/metrics)..." -ForegroundColor Yellow
+# Test 3: GeoIP Country Detection Header
+Write-Host "`n[Test 3] Testing GeoIP Country Detection Header..." -ForegroundColor Yellow
+try {
+    $resp = Invoke-WebRequest -Uri "$GatewayUrl/" -Method Get -TimeoutSec 2
+    $country = $resp.Headers['X-Country-Code']
+    Write-Host "  -> Detected Country: $country" -ForegroundColor Green
+} catch {
+    Write-Host "  -> GeoIP Test Failed: $_" -ForegroundColor Red
+}
+
+# Test 4: Prometheus Metrics Exporter
+Write-Host "`n[Test 4] Testing Prometheus Metrics (/metrics)..." -ForegroundColor Yellow
 try {
     $resp = Invoke-WebRequest -Uri "$GatewayUrl/metrics" -Method Get
     if ($resp.Content -match "gateway_http_requests_total") {
