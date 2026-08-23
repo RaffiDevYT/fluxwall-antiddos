@@ -32,6 +32,19 @@ try {
     }
 }
 
+# Test 2B: Lightweight WAF & SQLi / XSS Attack Sanitizer
+Write-Host "`n[Test 2B] Testing WAF Exploit Sanitizer (?id=1 UNION SELECT 1,2,3)..." -ForegroundColor Yellow
+try {
+    $resp = Invoke-WebRequest -Uri "$GatewayUrl/?id=1%20UNION%20SELECT%201,2,3" -Method Get -TimeoutSec 2
+    Write-Host "  -> FAILED: SQLi payload was allowed through" -ForegroundColor Red
+} catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 403) {
+        Write-Host "  -> SUCCESS: SQL Injection exploit blocked with 403 Forbidden!" -ForegroundColor Green
+    } else {
+        Write-Host "  -> Response: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
 # Test 3: GeoIP Country Detection Header
 Write-Host "`n[Test 3] Testing GeoIP Country Detection Header..." -ForegroundColor Yellow
 try {
