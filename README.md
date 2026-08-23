@@ -63,67 +63,129 @@ Kombinasi **FluxWall** merepresentasikan sebuah gerbang pintar yang mampu mengon
 │   └── test_rate_limit.sh      # Extended Bash automated test suite
 ├── Dockerfile                  # OpenResty custom Docker build
 ├── docker-compose.yml          # Multi-container stack (Gateway, Redis, Mock Backend)
+├── TUTORIAL_VPS.md             # Panduan deployment VPS lengkap
+├── LICENSE                     # MIT License
 └── README.md
 ```
 
 ---
 
-## 🛠️ Quick Start with Docker
+## 📖 Panduan Lengkap Pemasangan di VPS Linux (Ubuntu / Debian)
 
-> 📖 **Panduan Pemasangan Lengkap di Server VPS Linux**: Silakan baca **[TUTORIAL_VPS.md](file:///c:/laragon/www/antiddos/TUTORIAL_VPS.md)** untuk petunjuk instalasi step-by-step di Ubuntu/Debian, setup SSL Let's Encrypt, integrasi backend Laravel/Node.js, dan tuning kernel anti-DDoS.
+Berikut adalah panduan langkah demi langkah untuk memasang **FluxWall** di server VPS publik Anda.
 
-### 1. Start the Stack
+### 1. Update VPS & Install Docker
+Login ke VPS via SSH, lalu jalankan:
 ```bash
-docker-compose up -d --build
-```
-This starts:
-* **Gateway (OpenResty)** on `http://localhost:8080`
-* **Admin Dashboard UI** on `http://localhost:8080/admin/`
-* **Prometheus Metrics** on `http://localhost:8080/metrics`
-* **Redis** on `localhost:6379`
-* **Mock Backend** on internal port `3000`
+# Update sistem
+apt update && apt upgrade -y
 
-### 2. Access the Admin Dashboard
-Open **`http://localhost:8080/admin/`** in your browser to view real-time QPS charts, active bans, and manage whitelists/blacklists with a single click.
+# Install Docker Engine & Docker Compose
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+apt install -y docker-compose-plugin
+```
+
+### 2. Clone Repository FluxWall
+```bash
+git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git /opt/antiddos
+cd /opt/antiddos
+```
+
+### 3. Sesuaikan Konfigurasi Produksi
+Buka `docker-compose.yml`:
+```bash
+nano docker-compose.yml
+```
+* Ubah port ke port web publik: `"80:80"` dan `"443:443"`.
+* Ganti `ADMIN_API_KEY` dengan password rahasia yang kuat.
+
+Buka `conf/nginx.conf` untuk menghubungkan ke backend aplikasi Anda:
+```bash
+nano conf/nginx.conf
+```
+Arahkan blok `upstream backend_servers` ke port aplikasi backend Anda (misal Node.js/PHP di port 3000):
+```nginx
+upstream backend_servers {
+    server host.docker.internal:3000 max_fails=3 fail_timeout=10s;
+    keepalive 64;
+}
+```
+
+### 4. Jalankan FluxWall Gateway
+```bash
+docker compose up -d --build
+```
+
+### 5. Setup SSL / HTTPS Gratis (Let's Encrypt / Certbot)
+```bash
+apt install -y certbot
+docker stop antiddos_gateway
+certbot certonly --standalone -d domainanda.com -d www.domainanda.com
+docker compose up -d
+```
+
+### 6. Tuning Kernel Linux VPS (Ketahanan Anti-DDoS)
+Jalankan perintah ini di VPS untuk mengoptimalkan socket & antrian koneksi sistem:
+```bash
+cat << 'EOF' >> /etc/sysctl.conf
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_syn_backlog = 65535
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 65535
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 15
+fs.file-max = 2097152
+EOF
+
+sysctl -p
+```
+
+---
+
+## 🖥️ Web Admin Dashboard (`/admin/`)
+
+Buka browser Anda dan akses:
+```text
+http://IP_VPS_ANDA/admin/   (atau https://domainanda.com/admin/)
+```
+* **Real-time Live QPS Chart**: Memantau volume trafik per detik secara streaming.
+* **Surge Mode Indicator**: Menampilkan status pertahanan lonjakan trafik secara otomatis.
+* **1-Click IP Unban**: Membuka blokir IP yang terkena auto-ban langsung dari UI.
+* **Whitelist & Blacklist Manager**: Menambah/menghapus IP tanpa perlu reload Nginx.
 
 ---
 
 ## 🔌 Admin REST API Endpoints (`/api/admin/*`)
 
-Include the header `X-Admin-Key: super-secret-admin-key-2026` or URL query parameter `?api_key=...` for authentication.
+Gunakan header `X-Admin-Key: <SECRET_KEY>` atau query parameter `?api_key=...`:
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/admin/stats` | Returns QPS, active ban count, surge mode state |
-| `GET` | `/api/admin/bans` | Lists all active temporary bans & remaining TTLs |
-| `POST` | `/api/admin/bans` | Manually bans an IP: `{"ip": "1.2.3.4", "duration_sec": 600, "reason": "Attack"}` |
-| `DELETE` | `/api/admin/bans?ip=1.2.3.4` | Unbans an IP immediately |
-| `GET` | `/api/admin/whitelist` | Lists all whitelisted IPs |
-| `POST` | `/api/admin/whitelist` | Whitelists an IP: `{"ip": "203.0.113.5"}` |
-| `DELETE` | `/api/admin/whitelist?ip=203.0.113.5` | Removes IP from whitelist |
-| `GET` | `/api/admin/blacklist` | Lists permanently blacklisted IPs |
-| `POST` | `/api/admin/blacklist` | Adds IP to permanent blacklist |
-| `DELETE` | `/api/admin/blacklist?ip=...` | Removes IP from blacklist |
+| `GET` | `/api/admin/stats` | Status global QPS, active bans, status Surge Mode |
+| `GET` | `/api/admin/bans` | Daftar IP yang sedang di-ban beserta sisa waktu TTL |
+| `POST` | `/api/admin/bans` | Ban manual: `{"ip": "1.2.3.4", "duration_sec": 600, "reason": "Attack"}` |
+| `DELETE` | `/api/admin/bans?ip=1.2.3.4` | Unban IP secara instan |
+| `GET` | `/api/admin/whitelist` | Daftar IP yang masuk whitelist |
+| `POST` | `/api/admin/whitelist` | Tambah IP ke whitelist: `{"ip": "203.0.113.5"}` |
+| `DELETE` | `/api/admin/whitelist?ip=203.0.113.5` | Hapus IP dari whitelist |
+| `GET` | `/api/admin/blacklist` | Daftar IP blacklist permanen |
+| `POST` | `/api/admin/blacklist` | Tambah IP ke blacklist permanen |
+| `DELETE` | `/api/admin/blacklist?ip=...` | Hapus IP dari blacklist |
 
 ---
 
 ## 📊 Prometheus Integration (`/metrics`)
 
-Configure your `prometheus.yml`:
+Tambahkan ke konfigurasi `prometheus.yml`:
 ```yaml
 scrape_configs:
-  - job_name: 'aegisguard_gateway'
+  - job_name: 'fluxwall_gateway'
     scrape_interval: 5s
     static_configs:
       - targets: ['gateway:80']
 ```
-
-Exposed metrics include:
-* `gateway_http_requests_total{status, protection, method}`
-* `gateway_blocked_requests_total{reason}`
-* `gateway_surge_mode_active`
-* `gateway_global_qps`
-* `gateway_active_bans`
 
 ---
 
@@ -145,16 +207,16 @@ bash test/test_rate_limit.sh
 
 | Option | Description | Default |
 | :--- | :--- | :--- |
-| `admin.api_key` | Secret key for Admin Dashboard and REST API | `super-secret-admin-key-2026` |
-| `surge_mode.enabled` | Activate dynamic rate tightening during traffic spikes | `true` |
-| `surge_mode.qps_threshold` | Global QPS threshold triggering surge mode | `200` req/s |
-| `surge_mode.rate_scale_factor` | Per-IP limit reduction factor during surge | `0.5` (50%) |
-| `default_limit.max_requests` | Global max requests per window | `20` |
-| `default_limit.burst` | Allowed burst before `503` is returned | `5` |
-| `auto_ban.max_violations` | Rate-limit violations before auto-ban | `5` |
-| `auto_ban.ban_duration_sec`| Auto-ban duration in seconds | `900` (15 mins) |
+| `admin.api_key` | Secret key untuk Web Dashboard dan REST API | `super-secret-admin-key-2026` |
+| `surge_mode.enabled` | Mengaktifkan perlindungan lonjakan trafik global | `true` |
+| `surge_mode.qps_threshold` | Ambang batas QPS pemicu Surge Mode | `200` req/s |
+| `surge_mode.rate_scale_factor` | Faktor pengetatan rate limit saat lonjakan | `0.5` (50%) |
+| `default_limit.max_requests` | Batas request global per IP per detik | `20` |
+| `default_limit.burst` | Toleransi burst sebelum dikembalikan `503` | `5` |
+| `auto_ban.max_violations` | Batas pelanggaran sebelum terkena Auto-Ban | `5` |
+| `auto_ban.ban_duration_sec`| Durasi Auto-Ban dalam detik | `900` (15 menit) |
 
 ---
 
 ## 📄 License
-MIT
+MIT License - Copyright (c) 2026 [RaffiDevYT](https://github.com/RaffiDevYT)
