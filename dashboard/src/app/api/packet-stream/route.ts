@@ -1,64 +1,22 @@
 import { NextResponse } from "next/server";
-import { getRedisClient } from "@/lib/redis";
+import { getPackets, recordPacket, CapturedPacket } from "@/lib/packet-store";
 
 export const dynamic = "force-dynamic";
 
-export interface CapturedPacket {
-  id: string;
-  time: string;
-  client_ip: string;
-  country: string;
-  method: "GET" | "POST" | "HEAD" | "PUT" | "DELETE" | "OPTIONS";
-  uri: string;
-  status: number;
-  protection: "inspected-pass" | "bot-filter" | "rate-limited" | "geo-block" | "custom-waf" | "blacklisted" | "whitelisted";
-  payload_size: string;
-  latency_ms: number;
-  headers: Record<string, string>;
-}
-
-// In-memory packet buffer for local development if Redis is offline
-let localLivePacketRingBuffer: CapturedPacket[] = [];
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const limit = Math.min(parseInt(searchParams.get("count") || "20", 10), 50);
+  const limit = Math.min(parseInt(searchParams.get("count") || "40", 10), 80);
 
-  try {
-    const redis = getRedisClient();
-    const rawList = await redis.lrange("fluxwall:packets", 0, limit - 1);
-    await redis.quit();
+  const packets = await getPackets(limit);
 
-    if (rawList && rawList.length > 0) {
-      const parsed = rawList
-        .map((item) => {
-          try {
-            return JSON.parse(item);
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean);
-
-      return NextResponse.json({
-        status: "success",
-        source: "redis_live_production",
-        stream_active: true,
-        packets: parsed,
-      });
-    }
-  } catch {}
-
-  // Fallback to local live ring buffer
   return NextResponse.json({
     status: "success",
-    source: "local_live_buffer",
     stream_active: true,
-    packets: localLivePacketRingBuffer.slice(0, limit),
+    count: packets.length,
+    packets,
   });
 }
 
-// Endpoint to ingest real packets from Middleware / Simulator / Gateway
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -81,17 +39,7 @@ export async function POST(req: Request) {
       },
     };
 
-    localLivePacketRingBuffer.unshift(packet);
-    if (localLivePacketRingBuffer.length > 60) {
-      localLivePacketRingBuffer = localLivePacketRingBuffer.slice(0, 60);
-    }
-
-    try {
-      const redis = getRedisClient();
-      await redis.lpush("fluxwall:packets", JSON.stringify(packet));
-      await redis.ltrim("fluxwall:packets", 0, 59);
-      await redis.quit();
-    } catch {}
+    await recordPacket(packet);
 
     return NextResponse.json({ status: "success", packet });
   } catch (err: any) {

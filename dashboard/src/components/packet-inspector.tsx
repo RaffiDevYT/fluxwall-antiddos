@@ -41,13 +41,10 @@ export default function PacketInspector() {
   const fetchPackets = async () => {
     if (!isStreaming) return;
     try {
-      const res = await fetch("/api/packet-stream?count=4", { cache: "no-store" });
+      const res = await fetch("/api/packet-stream?count=40", { cache: "no-store" });
       const data = await res.json();
       if (data.status === "success" && data.packets) {
-        setPackets((prev) => {
-          const combined = [...data.packets, ...prev];
-          return combined.slice(0, 40); // Keep latest 40 packets in ring buffer
-        });
+        setPackets(data.packets);
       }
     } catch {}
   };
