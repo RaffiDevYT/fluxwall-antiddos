@@ -119,7 +119,16 @@ if is_blocked then
 end
 
 -- 7. Step: JavaScript Proof-of-Work (PoW) Challenge / Under Attack Mode
-local should_challenge = (config.challenge and config.challenge.enabled) or 
+local dynamic_under_attack = false
+redis_pool.exec(function(red)
+    local state = red:get("config:under_attack_mode")
+    if state == "1" then
+        dynamic_under_attack = true
+    end
+end)
+
+local should_challenge = dynamic_under_attack or
+                         (config.challenge and config.challenge.enabled) or 
                          (config.challenge and config.challenge.auto_trigger_on_surge and is_surge)
 
 if should_challenge and not challenge.has_valid_token(client_ip) then

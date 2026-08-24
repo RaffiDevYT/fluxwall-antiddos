@@ -170,7 +170,20 @@ function _M.check_country(client_ip)
         end
     end
 
-    -- 2. Blacklist Mode: Block listed countries
+    -- 2. Check dynamic Redis blocked countries from Dashboard
+    local is_redis_blocked = false
+    redis_pool.exec(function(red)
+        local member = red:sismember("geoip:blocked_countries", country)
+        if member == 1 then
+            is_redis_blocked = true
+        end
+    end)
+
+    if is_redis_blocked then
+        return false, country, "COUNTRY_BLOCKED_BY_ADMIN (" .. country .. ")"
+    end
+
+    -- 3. Blacklist Mode: Block static config listed countries
     if mode == "blacklist" then
         if config.geoip.blocked_countries and config.geoip.blocked_countries[country] then
             return false, country, "COUNTRY_BLOCKED (" .. country .. ")"
