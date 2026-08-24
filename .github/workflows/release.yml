@@ -81,7 +81,7 @@ jobs:
           mkdir -p "$DEB_DIR/usr/local/bin"
 
           # Copy project files into /opt/antiddos
-          cp -r admin bin conf docker docs lua scripts test Dockerfile docker-compose.yml install.sh uninstall.sh LICENSE README.md "$DEB_DIR/opt/antiddos/"
+          cp -r bin conf dashboard docker docs lua scripts test Dockerfile docker-compose.yml install.sh uninstall.sh LICENSE README.md "$DEB_DIR/opt/antiddos/"
           chmod +x "$DEB_DIR/opt/antiddos/bin/fluxwall.sh"
           chmod +x "$DEB_DIR/opt/antiddos/scripts/"*.sh
 
