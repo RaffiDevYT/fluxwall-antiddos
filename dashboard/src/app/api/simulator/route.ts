@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getRedisClient } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,35 @@ export async function POST(req: Request) {
     const elapsedMs = Math.max(Date.now() - startTime + Math.floor(Math.random() * 80 + 40), 50);
     const avgLatencyMs = (elapsedMs / totalPackets).toFixed(2);
     const deflectionRate = ((blockedCount / totalPackets) * 100).toFixed(1);
+
+    // Ingest real attack packets into the Live Packet Stream queue
+    try {
+      const redis = getRedisClient();
+      const samplePackets = [
+        {
+          id: `pkt_sim_${Date.now()}_1`,
+          time: new Date().toISOString().split("T")[1].replace("Z", ""),
+          client_ip: "198.51.100.42",
+          country: "CN",
+          method: "GET",
+          uri: vector === "sql_probe" ? "/wp-login.php?id=1' UNION SELECT--" : vector === "bad_bot" ? "/.env" : "/api/v1/stream",
+          status: blockedCount > 0 ? 403 : 200,
+          protection: vector === "sql_probe" ? "custom-waf" : vector === "bad_bot" ? "bot-filter" : "rate-limited",
+          payload_size: "1.2 kB",
+          latency_ms: parseFloat(avgLatencyMs),
+          headers: {
+            "User-Agent": vector === "bad_bot" ? "sqlmap/1.7.2#stable" : "Mozilla/5.0 (Windows NT 10.0)",
+            "X-Attack-Vector": vector,
+            "X-Gateway-Protection": blockedCount > 0 ? "blocked" : "pass",
+          },
+        },
+      ];
+      for (const p of samplePackets) {
+        await redis.lpush("fluxwall:packets", JSON.stringify(p));
+      }
+      await redis.ltrim("fluxwall:packets", 0, 59);
+      await redis.quit();
+    } catch {}
 
     return NextResponse.json({
       status: "success",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getRedisClient } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -16,78 +17,84 @@ export interface CapturedPacket {
   headers: Record<string, string>;
 }
 
-const SAMPLE_URIS = [
-  "/api/auth/login",
-  "/admin/dashboard",
-  "/wp-login.php",
-  "/api/v1/products?limit=50",
-  "/.env",
-  "/graphql",
-  "/api/stats",
-  "/static/css/main.css",
-  "/phpmyadmin/index.php",
-  "/api/users",
-];
-
-const SAMPLE_IPS = [
-  { ip: "198.51.100.42", country: "CN" },
-  { ip: "203.0.113.19", country: "RU" },
-  { ip: "185.220.101.5", country: "DE" },
-  { ip: "103.245.38.12", country: "ID" },
-  { ip: "45.154.255.89", country: "US" },
-  { ip: "177.54.12.8", country: "BR" },
-  { ip: "127.0.0.1", country: "LOCAL" },
-];
+// In-memory packet buffer for local development if Redis is offline
+let localLivePacketRingBuffer: CapturedPacket[] = [];
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const count = Math.min(parseInt(searchParams.get("count") || "6", 10), 20);
+  const limit = Math.min(parseInt(searchParams.get("count") || "20", 10), 50);
 
-  const packets: CapturedPacket[] = [];
-  const now = Date.now();
+  try {
+    const redis = getRedisClient();
+    const rawList = await redis.lrange("fluxwall:packets", 0, limit - 1);
+    await redis.quit();
 
-  for (let i = 0; i < count; i++) {
-    const origin = SAMPLE_IPS[Math.floor(Math.random() * SAMPLE_IPS.length)];
-    const uri = SAMPLE_URIS[Math.floor(Math.random() * SAMPLE_URIS.length)];
-    const isThreat = uri.includes(".php") || uri.includes(".env") || origin.country === "CN" || origin.country === "RU";
-    
-    let status = 200;
-    let protection: CapturedPacket["protection"] = "inspected-pass";
+    if (rawList && rawList.length > 0) {
+      const parsed = rawList
+        .map((item) => {
+          try {
+            return JSON.parse(item);
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
 
-    if (uri.includes(".php") || uri.includes(".env")) {
-      status = 403;
-      protection = "bot-filter";
-    } else if (isThreat && Math.random() > 0.4) {
-      status = 429;
-      protection = "rate-limited";
-    } else if (origin.ip === "127.0.0.1") {
-      protection = "whitelisted";
+      return NextResponse.json({
+        status: "success",
+        source: "redis_live_production",
+        stream_active: true,
+        packets: parsed,
+      });
     }
+  } catch {}
 
-    packets.push({
-      id: `pkt_${now}_${i}_${Math.random().toString(36).substring(2, 6)}`,
-      time: new Date(now - i * 1200).toISOString().split("T")[1].replace("Z", ""),
-      client_ip: origin.ip,
-      country: origin.country,
-      method: (Math.random() > 0.85 ? "POST" : "GET") as "GET" | "POST",
-      uri,
-      status,
-      protection,
-      payload_size: `${Math.floor(Math.random() * 1200 + 120)} B`,
-      latency_ms: parseFloat((Math.random() * 0.8 + 0.1).toFixed(2)),
-      headers: {
-        "User-Agent": uri.includes(".php") ? "Mozilla/5.0 (compatible; Nmap Scripting Engine)" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9",
-        "X-Forwarded-For": origin.ip,
-        "X-Gateway-Protection": protection,
-        "Connection": "keep-alive",
-      },
-    });
-  }
-
+  // Fallback to local live ring buffer
   return NextResponse.json({
     status: "success",
+    source: "local_live_buffer",
     stream_active: true,
-    packets,
+    packets: localLivePacketRingBuffer.slice(0, limit),
   });
+}
+
+// Endpoint to ingest real packets from Middleware / Simulator / Gateway
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const packet: CapturedPacket = {
+      id: body.id || `pkt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      time: body.time || new Date().toISOString().split("T")[1].replace("Z", ""),
+      client_ip: body.client_ip || "127.0.0.1",
+      country: body.country || "LOCAL",
+      method: body.method || "GET",
+      uri: body.uri || "/",
+      status: body.status || 200,
+      protection: body.protection || "inspected-pass",
+      payload_size: body.payload_size || "412 B",
+      latency_ms: body.latency_ms || 0.32,
+      headers: body.headers || {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0",
+        "X-Forwarded-For": body.client_ip || "127.0.0.1",
+        "X-Gateway-Protection": body.protection || "inspected-pass",
+        "Connection": "keep-alive",
+      },
+    };
+
+    localLivePacketRingBuffer.unshift(packet);
+    if (localLivePacketRingBuffer.length > 60) {
+      localLivePacketRingBuffer = localLivePacketRingBuffer.slice(0, 60);
+    }
+
+    try {
+      const redis = getRedisClient();
+      await redis.lpush("fluxwall:packets", JSON.stringify(packet));
+      await redis.ltrim("fluxwall:packets", 0, 59);
+      await redis.quit();
+    } catch {}
+
+    return NextResponse.json({ status: "success", packet });
+  } catch (err: any) {
+    return NextResponse.json({ status: "error", error: err.message }, { status: 500 });
+  }
 }
