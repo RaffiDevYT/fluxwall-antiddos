@@ -52,8 +52,8 @@ import {
   ServerCrash,
   Send,
   Layers,
-  ArrowRightLeft,
-  Check,
+  MapPin,
+  Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,7 +62,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { translations, Language } from "@/lib/i18n";
 
-// Async Lazy-Loaded Chart Modules with Zero Main-Thread Blocking
+// Async Lazy-Loaded Visual Modules with Zero Main-Thread Blocking
 const TelemetryChart = dynamic(() => import("@/components/charts/telemetry-chart"), {
   ssr: false,
   loading: () => (
@@ -87,6 +87,24 @@ const TopCountriesChart = dynamic(
     loading: () => <div className="h-56 w-full bg-secondary/20 rounded-xl animate-pulse" />,
   }
 );
+
+const CyberThreatMap = dynamic(() => import("@/components/charts/cyber-threat-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-80 w-full flex items-center justify-center bg-secondary/10 rounded-2xl border border-primary/20 animate-pulse">
+      <span className="text-xs text-muted-foreground font-mono">Initializing Cyber Threat Map Canvas...</span>
+    </div>
+  ),
+});
+
+const PacketInspector = dynamic(() => import("@/components/packet-inspector"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-80 w-full flex items-center justify-center bg-secondary/10 rounded-2xl border border-primary/20 animate-pulse">
+      <span className="text-xs text-muted-foreground font-mono">Connecting to Live Packet Stream...</span>
+    </div>
+  ),
+});
 
 interface HealthData {
   status: "ok" | "error";
@@ -189,6 +207,8 @@ interface SimulationReport {
 
 type NavSection =
   | "overview"
+  | "threat_map"
+  | "packet_stream"
   | "analytics"
   | "simulator"
   | "bans"
@@ -944,6 +964,30 @@ export default function EnterpriseAdminDashboard() {
           </button>
 
           <button
+            onClick={() => handleNavSelect("threat_map")}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "threat_map"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <MapPin className="w-4 h-4 text-primary animate-pulse" />
+            <span>{t.navThreatMap}</span>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("packet_stream")}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "packet_stream"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <Terminal className="w-4 h-4 text-primary" />
+            <span>{t.navPacketInspector}</span>
+          </button>
+
+          <button
             onClick={() => handleNavSelect("analytics")}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "analytics"
@@ -1584,6 +1628,20 @@ export default function EnterpriseAdminDashboard() {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+          )}
+
+          {/* VIEW: CYBER THREAT MAP */}
+          {currentNav === "threat_map" && (
+            <div className="space-y-6">
+              <CyberThreatMap />
+            </div>
+          )}
+
+          {/* VIEW: LIVE PACKET STREAM & SNIFFER */}
+          {currentNav === "packet_stream" && (
+            <div className="space-y-6">
+              <PacketInspector />
             </div>
           )}
 

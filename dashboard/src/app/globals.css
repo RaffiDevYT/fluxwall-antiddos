@@ -54,3 +54,17 @@ body {
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
+
+@keyframes laser-flow {
+  0% {
+    stroke-dashoffset: 210;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-laser {
+  animation: laser-flow 2.2s linear infinite;
+}
+

@@ -23,6 +23,8 @@ export const translations = {
     // Nav Items
     navMonitoring: "Monitoring & Telemetry",
     navOverview: "Overview & Metrics",
+    navThreatMap: "Cyber Threat Map",
+    navPacketInspector: "Live Packet Stream",
     navAnalytics: "Threat Analytics",
     navAttackLogs: "Attack Logs",
     navSimulator: "DDoS Simulator",
@@ -54,6 +56,32 @@ export const translations = {
     statWhitelistSub: "Zero-penalty instant pass rules",
     statThreats: "Total Threats Blocked",
     statThreatsSub: "Permanent drop rules",
+
+    // Threat Map
+    mapTitle: "Global Cyber Threat Map & Attack Trajectory",
+    mapDesc: "Real-time geographic threat visualization with active laser trajectory interception",
+    mapOriginNode: "Attacking Origin Node",
+    mapTargetNode: "Target Gateway (Primary Cluster)",
+    mapLiveBeams: "Active Laser Trajectories",
+    mapRecentHotspots: "High-Frequency Attack Hotspots",
+    mapZoomReset: "Reset View",
+
+    // Packet Inspector
+    snifferTitle: "Live HTTP Packet Sniffer & Traffic Stream",
+    snifferDesc: "Real-time deep packet inspection (DPI) capturing methods, headers, and protection decisions",
+    btnPauseStream: "Pause Stream",
+    btnResumeStream: "Resume Stream",
+    btnClearStream: "Clear Buffer",
+    filterPlaceholder: "Filter by IP, URI path, method...",
+    tableTimestamp: "Time (UTC)",
+    tableMethod: "Method",
+    tableClient: "Client IP & Origin",
+    tableUri: "Request URI / Path",
+    tableStatus: "Status",
+    tableProtection: "Defense Layer",
+    tablePayloadSize: "Payload",
+    tableLatencyMs: "Latency",
+    noPacketsYet: "Waiting for incoming gateway packets... Stream is active.",
 
     // Chart & Form
     chartTitle: "Live Traffic Telemetry",
@@ -284,6 +312,8 @@ export const translations = {
     // Nav Items
     navMonitoring: "Monitoring & Telemetri",
     navOverview: "Ringkasan & Metrik",
+    navThreatMap: "Peta Serangan Siber",
+    navPacketInspector: "Inspektor Paket Live",
     navAnalytics: "Analisis Ancaman",
     navAttackLogs: "Log Serangan",
     navSimulator: "Simulator DDoS",
@@ -315,6 +345,32 @@ export const translations = {
     statWhitelistSub: "Aturan bypass instan tanpa penalti",
     statThreats: "Total Ancaman Diblokir",
     statThreatsSub: "Aturan drop permanen",
+
+    // Threat Map
+    mapTitle: "Peta Ancaman Siber Global & Trajektori Serangan",
+    mapDesc: "Visualisasi geografis real-time dengan animasi intersepsi laser dari negara penyerang",
+    mapOriginNode: "Titik Asal Serangan",
+    mapTargetNode: "Node Gateway Utama",
+    mapLiveBeams: "Trajektori Laser Aktif",
+    mapRecentHotspots: "Titik Panas Serangan Terbanyak",
+    mapZoomReset: "Reset Tampilan",
+
+    // Packet Inspector
+    snifferTitle: "Sniffer & Aliran Paket HTTP Real-Time",
+    snifferDesc: "Inspeksi mendalam paket jaringan (DPI) merekam method, header HTTP, dan keputusan filter",
+    btnPauseStream: "Jeda Aliran",
+    btnResumeStream: "Lanjutkan Aliran",
+    btnClearStream: "Hapus Buffer",
+    filterPlaceholder: "Filter berdasarkan IP, URI path, method...",
+    tableTimestamp: "Waktu (UTC)",
+    tableMethod: "Method",
+    tableClient: "IP & Asal Klien",
+    tableUri: "URI / Path Request",
+    tableStatus: "Status",
+    tableProtection: "Lapisan Filter",
+    tablePayloadSize: "Ukuran",
+    tableLatencyMs: "Latensi",
+    noPacketsYet: "Menunggu paket masuk dari gateway... Aliran aktif.",
 
     // Chart & Form
     chartTitle: "Telemetri Traffic Langsung",
