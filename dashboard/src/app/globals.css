@@ -2,55 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #070b12;
-  --foreground: #f8fafc;
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 5.5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 5.5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 16%;
+    --input: 240 6% 16%;
+    --ring: 199 89% 48%;
+    --radius: 0.75rem;
+  }
+}
+
+* {
+  border-color: hsl(var(--border));
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  overflow-x: hidden;
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/* Glassmorphism card styles */
-.glass-panel {
-  background: rgba(13, 20, 36, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(56, 189, 248, 0.15);
-  border-radius: 1rem;
+/* Custom Cyber Shimmer & Glow */
+.glow-primary {
+  box-shadow: 0 0 35px -5px rgba(56, 189, 248, 0.2);
+}
+.glow-danger {
+  box-shadow: 0 0 35px -5px rgba(239, 68, 68, 0.25);
+}
+.glow-success {
+  box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.2);
 }
 
-.glass-panel:hover {
-  border-color: rgba(56, 189, 248, 0.3);
-}
-
-.glow-cyan {
-  box-shadow: 0 0 25px rgba(56, 189, 248, 0.15);
-}
-
-.glow-red {
-  box-shadow: 0 0 25px rgba(239, 68, 68, 0.2);
-}
-
-.glow-green {
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
-}
-
-/* Custom Cyber Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #070b12;
-}
-::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
+/* Cyber Grid Background */
+.bg-grid-cyber {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
