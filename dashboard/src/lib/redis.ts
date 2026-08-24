@@ -1,6 +1,7 @@
 import Redis from "ioredis";
 
-const redisHost = process.env.REDIS_HOST || "redis";
+const isProd = process.env.NODE_ENV === "production";
+const redisHost = process.env.REDIS_HOST || (isProd ? "redis" : "localhost");
 const redisPort = parseInt(process.env.REDIS_PORT || "6379", 10);
 const redisPassword = process.env.REDIS_PASSWORD || undefined;
 const redisDb = parseInt(process.env.REDIS_DB || "0", 10);
@@ -17,16 +18,18 @@ export function getRedisClient(): Redis {
       port: redisPort,
       password: redisPassword,
       db: redisDb,
-      connectTimeout: 2000,
-      maxRetriesPerRequest: 2,
+      connectTimeout: 1000,
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
       retryStrategy(times) {
-        return Math.min(times * 100, 2000);
+        if (times > 3) return null; // stop spamming if offline in dev
+        return 2000;
       },
-      lazyConnect: false,
+      lazyConnect: true,
     });
 
     global.redisClientInstance.on("error", (err) => {
-      console.error("[Redis Error]", err.message);
+      // quiet log in local dev if Redis container not running
     });
   }
 
