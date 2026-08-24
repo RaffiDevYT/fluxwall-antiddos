@@ -36,6 +36,23 @@ services:
     networks:
       - antiddos_net
 
+  # 3. Next.js Cyber Defense Admin Dashboard (with Terminus Health Indicator)
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: antiddos_dashboard
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GATEWAY_URL=http://gateway:80/healthz
+      - NODE_ENV=production
+    depends_on:
+      - redis
+    networks:
+      - antiddos_net
+
   # 3. Upstream Mock Backend Server (Node.js)
   backend:
     image: node:20-alpine
