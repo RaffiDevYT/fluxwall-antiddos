@@ -48,6 +48,12 @@ import {
   EyeOff,
   Menu,
   X,
+  Crosshair,
+  ServerCrash,
+  Send,
+  Layers,
+  ArrowRightLeft,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,16 +141,66 @@ interface AdminUserItem {
   created_at: string;
 }
 
+interface CustomWafRule {
+  id: string;
+  name: string;
+  field: "uri" | "user_agent" | "header" | "query";
+  operator: "contains" | "equals" | "regex";
+  value: string;
+  action: "DROP" | "CHALLENGE" | "LOG";
+  enabled: boolean;
+  created_at: string;
+}
+
+interface UpstreamServer {
+  id: string;
+  host: string;
+  port: number;
+  protocol: "http" | "https";
+  weight: number;
+  status: "healthy" | "degraded" | "down";
+  latency_ms: number;
+  last_checked: string;
+}
+
+interface SslDomain {
+  id: string;
+  domain: string;
+  issuer: "letsencrypt" | "custom";
+  force_https: boolean;
+  hsts: boolean;
+  tls13_strict: boolean;
+  expires_at: string;
+  days_remaining: number;
+  status: "active" | "pending";
+}
+
+interface SimulationReport {
+  vector: string;
+  total_packets: number;
+  packets_blocked: number;
+  packets_allowed: number;
+  deflection_rate: string;
+  elapsed_time_ms: number;
+  avg_packet_latency_ms: string;
+  mitigation_reason: string;
+  timestamp: string;
+}
+
 type NavSection =
   | "overview"
   | "analytics"
+  | "simulator"
   | "bans"
   | "whitelist"
   | "blacklist"
   | "geoip"
   | "lookup"
   | "waf"
+  | "custom_waf"
   | "ratelimits"
+  | "upstreams"
+  | "ssl"
   | "users"
   | "profile"
   | "logs"
@@ -176,10 +232,20 @@ export default function EnterpriseAdminDashboard() {
   const [blockedCountries, setBlockedCountries] = useState<string[]>([]);
   const [liveLogs, setLiveLogs] = useState<LogEvent[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>([]);
+  const [customWafRules, setCustomWafRules] = useState<CustomWafRule[]>([]);
+  const [upstreams, setUpstreams] = useState<UpstreamServer[]>([]);
+  const [lbAlgorithm, setLbAlgorithm] = useState("round_robin");
+  const [sslDomains, setSslDomains] = useState<SslDomain[]>([]);
+
+  // Simulator State
+  const [simVector, setSimVector] = useState("http_flood");
+  const [simIntensity, setSimIntensity] = useState("50");
+  const [simRunning, setSimRunning] = useState(false);
+  const [simReport, setSimReport] = useState<SimulationReport | null>(null);
+
+  // Forms
   const [searchFilter, setSearchFilter] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Forms & Settings
   const [banIp, setBanIp] = useState("");
   const [banDuration, setBanDuration] = useState("900");
   const [whitelistIp, setWhitelistIp] = useState("");
@@ -187,6 +253,23 @@ export default function EnterpriseAdminDashboard() {
   const [newCountryCode, setNewCountryCode] = useState("");
   const [rateLimitGeneral, setRateLimitGeneral] = useState("20");
   const [rateLimitBurst, setRateLimitBurst] = useState("50");
+
+  // Custom WAF Form
+  const [ruleName, setRuleName] = useState("");
+  const [ruleField, setRuleField] = useState<"uri" | "user_agent" | "header" | "query">("uri");
+  const [ruleOp, setRuleOp] = useState<"contains" | "equals" | "regex">("contains");
+  const [ruleVal, setRuleVal] = useState("");
+  const [ruleAction, setRuleAction] = useState<"DROP" | "CHALLENGE" | "LOG">("DROP");
+
+  // Upstream Form
+  const [newUpsHost, setNewUpsHost] = useState("");
+  const [newUpsPort, setNewUpsPort] = useState("80");
+  const [newUpsProtocol, setNewUpsProtocol] = useState<"http" | "https">("http");
+  const [newUpsWeight, setNewUpsWeight] = useState("1");
+
+  // SSL Form
+  const [newDomain, setNewDomain] = useState("");
+  const [newIssuer, setNewIssuer] = useState<"letsencrypt" | "custom">("letsencrypt");
 
   // User Management State
   const [newUsername, setNewUsername] = useState("");
@@ -317,6 +400,37 @@ export default function EnterpriseAdminDashboard() {
     } catch {}
   };
 
+  const fetchCustomWafRules = async () => {
+    try {
+      const res = await fetch("/api/waf/custom-rules", { cache: "no-store" });
+      const json = await res.json();
+      if (json.status === "success") {
+        setCustomWafRules(json.rules || []);
+      }
+    } catch {}
+  };
+
+  const fetchUpstreams = async () => {
+    try {
+      const res = await fetch("/api/upstreams", { cache: "no-store" });
+      const json = await res.json();
+      if (json.status === "success") {
+        setUpstreams(json.upstreams || []);
+        if (json.algorithm) setLbAlgorithm(json.algorithm);
+      }
+    } catch {}
+  };
+
+  const fetchSslDomains = async () => {
+    try {
+      const res = await fetch("/api/ssl", { cache: "no-store" });
+      const json = await res.json();
+      if (json.status === "success") {
+        setSslDomains(json.domains || []);
+      }
+    } catch {}
+  };
+
   const fetchNavData = useCallback(async () => {
     try {
       if (currentNav === "overview" || currentNav === "bans") {
@@ -341,6 +455,15 @@ export default function EnterpriseAdminDashboard() {
       }
       if (currentNav === "overview" || currentNav === "logs" || currentNav === "analytics") {
         fetchLogs();
+      }
+      if (currentNav === "custom_waf" || currentNav === "waf") {
+        fetchCustomWafRules();
+      }
+      if (currentNav === "upstreams") {
+        fetchUpstreams();
+      }
+      if (currentNav === "ssl") {
+        fetchSslDomains();
       }
       if (currentNav === "users") {
         fetchUsers();
@@ -373,6 +496,152 @@ export default function EnterpriseAdminDashboard() {
     window.location.href = "/login";
   };
 
+  const handleLaunchSimulation = async () => {
+    setSimRunning(true);
+    try {
+      const res = await fetch("/api/simulator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vector: simVector, intensity: simIntensity }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setSimReport(data.report);
+        showToast(
+          lang === "id"
+            ? `⚡ Simulasi selesai! ${data.report.packets_blocked} paket berhasil ditepis (${data.report.deflection_rate})`
+            : `⚡ Simulation complete! ${data.report.packets_blocked} packets deflected (${data.report.deflection_rate})`
+        );
+        fetchStats();
+        fetchLogs();
+      }
+    } catch (err: any) {
+      showToast(`Simulation Error: ${err.message}`);
+    } finally {
+      setSimRunning(false);
+    }
+  };
+
+  const handleCreateCustomRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ruleName || !ruleVal) return;
+    try {
+      const res = await fetch("/api/waf/custom-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: ruleName,
+          field: ruleField,
+          operator: ruleOp,
+          value: ruleVal,
+          action: ruleAction,
+          enabled: true,
+        }),
+      });
+      const json = await res.json();
+      if (json.status === "success") {
+        showToast(`WAF Rule "${ruleName}" deployed!`);
+        setRuleName("");
+        setRuleVal("");
+        fetchCustomWafRules();
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteCustomRule = async (id: string) => {
+    try {
+      await fetch(`/api/waf/custom-rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      showToast("WAF Rule deleted");
+      fetchCustomWafRules();
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  const handleAddUpstream = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUpsHost || !newUpsPort) return;
+    try {
+      const res = await fetch("/api/upstreams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: newUpsHost,
+          port: newUpsPort,
+          protocol: newUpsProtocol,
+          weight: newUpsWeight,
+        }),
+      });
+      const json = await res.json();
+      if (json.status === "success") {
+        showToast(`Upstream ${newUpsHost}:${newUpsPort} added!`);
+        setNewUpsHost("");
+        fetchUpstreams();
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteUpstream = async (id: string) => {
+    try {
+      await fetch(`/api/upstreams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      showToast("Upstream removed");
+      fetchUpstreams();
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  const handleAddDomain = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDomain) return;
+    try {
+      const res = await fetch("/api/ssl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: newDomain,
+          issuer: newIssuer,
+        }),
+      });
+      const json = await res.json();
+      if (json.status === "success") {
+        showToast(`Domain ${newDomain} protected with SSL!`);
+        setNewDomain("");
+        fetchSslDomains();
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  const handleToggleSslFlag = async (id: string, flag: "force_https" | "hsts" | "tls13_strict") => {
+    try {
+      await fetch("/api/ssl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggle_flag", id, flag }),
+      });
+      showToast("Security flag updated!");
+      fetchSslDomains();
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteDomain = async (id: string) => {
+    try {
+      await fetch(`/api/ssl?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      showToast("Domain removed");
+      fetchSslDomains();
+    } catch (err: any) {
+      showToast(`Error: ${err.message}`);
+    }
+  };
+
   const handleUnban = async (ip: string) => {
     try {
       const res = await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
@@ -381,9 +650,6 @@ export default function EnterpriseAdminDashboard() {
         showToast(`IP ${ip} unbanned!`);
         fetchNavData();
         fetchStats();
-        if (lookupResult && lookupResult.ip === ip) {
-          handleExecuteLookup(ip);
-        }
       }
     } catch (e: any) {
       showToast(`Error: ${e.message}`);
@@ -667,7 +933,7 @@ export default function EnterpriseAdminDashboard() {
         <div className="space-y-1">
           <button
             onClick={() => handleNavSelect("overview")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "overview"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -679,7 +945,7 @@ export default function EnterpriseAdminDashboard() {
 
           <button
             onClick={() => handleNavSelect("analytics")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "analytics"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -690,8 +956,20 @@ export default function EnterpriseAdminDashboard() {
           </button>
 
           <button
+            onClick={() => handleNavSelect("simulator")}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "simulator"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <Crosshair className="w-4 h-4 text-primary" />
+            <span>{t.navSimulator}</span>
+          </button>
+
+          <button
             onClick={() => handleNavSelect("logs")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "logs"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -716,7 +994,7 @@ export default function EnterpriseAdminDashboard() {
         <div className="space-y-1">
           <button
             onClick={() => handleNavSelect("lookup")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "lookup"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -728,7 +1006,7 @@ export default function EnterpriseAdminDashboard() {
 
           <button
             onClick={() => handleNavSelect("bans")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "bans"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -745,7 +1023,7 @@ export default function EnterpriseAdminDashboard() {
 
           <button
             onClick={() => handleNavSelect("whitelist")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "whitelist"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -762,7 +1040,7 @@ export default function EnterpriseAdminDashboard() {
 
           <button
             onClick={() => handleNavSelect("blacklist")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "blacklist"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -779,7 +1057,7 @@ export default function EnterpriseAdminDashboard() {
 
           <button
             onClick={() => handleNavSelect("geoip")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "geoip"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -795,20 +1073,37 @@ export default function EnterpriseAdminDashboard() {
           </button>
 
           <button
+            onClick={() => handleNavSelect("custom_waf")}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "custom_waf"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Shield className="w-4 h-4 text-primary" />
+              <span>{t.navCustomWaf}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {customWafRules.length}
+            </Badge>
+          </button>
+
+          <button
             onClick={() => handleNavSelect("waf")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "waf"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
             }`}
           >
-            <Shield className="w-4 h-4 text-primary" />
+            <ShieldAlert className="w-4 h-4 text-primary" />
             <span>{t.navWaf}</span>
           </button>
 
           <button
             onClick={() => handleNavSelect("ratelimits")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "ratelimits"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -820,7 +1115,49 @@ export default function EnterpriseAdminDashboard() {
         </div>
       </div>
 
-      {/* Section 3: Access & Administration */}
+      {/* Section 3: Infrastructure & Edge */}
+      <div>
+        <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+          {t.navInfrastructure}
+        </span>
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNavSelect("upstreams")}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "upstreams"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Server className="w-4 h-4 text-primary" />
+              <span>{t.navUpstreams}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {upstreams.length}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("ssl")}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "ssl"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Layers className="w-4 h-4 text-primary" />
+              <span>{t.navSsl}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {sslDomains.length}
+            </Badge>
+          </button>
+        </div>
+      </div>
+
+      {/* Section 4: Access & Administration */}
       <div>
         <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
           {t.navAdministration}
@@ -828,7 +1165,7 @@ export default function EnterpriseAdminDashboard() {
         <div className="space-y-1">
           <button
             onClick={() => handleNavSelect("users")}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "users"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -845,7 +1182,7 @@ export default function EnterpriseAdminDashboard() {
 
           <button
             onClick={() => handleNavSelect("profile")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "profile"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -857,7 +1194,7 @@ export default function EnterpriseAdminDashboard() {
         </div>
       </div>
 
-      {/* Section 4: System */}
+      {/* Section 5: System */}
       <div>
         <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
           {t.navSystem}
@@ -865,7 +1202,7 @@ export default function EnterpriseAdminDashboard() {
         <div className="space-y-1">
           <button
             onClick={() => handleNavSelect("maintenance")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               currentNav === "maintenance"
                 ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
                 : "text-muted-foreground hover:text-white hover:bg-primary/5"
@@ -876,7 +1213,7 @@ export default function EnterpriseAdminDashboard() {
           </button>
 
           <Link href="/errors">
-            <div className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-white hover:bg-primary/5 transition cursor-pointer">
+            <div className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-white hover:bg-primary/5 transition cursor-pointer">
               <div className="flex items-center gap-3">
                 <FileCode2 className="w-4 h-4 text-primary" />
                 <span>{t.navErrorShowcase}</span>
@@ -1281,6 +1618,482 @@ export default function EnterpriseAdminDashboard() {
                 </Card>
               </div>
             </div>
+          )}
+
+          {/* VIEW: DDOS ATTACK SIMULATOR SANDBOX */}
+          {currentNav === "simulator" && (
+            <div className="space-y-6">
+              <Card className="border-primary/20 bg-card/85 glow-primary">
+                <CardHeader className="border-b border-border/80 pb-4">
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-primary">
+                    <Crosshair className="w-4 h-4" /> {t.simTitle}
+                  </CardTitle>
+                  <CardDescription className="text-[11px]">{t.simDesc}</CardDescription>
+                </CardHeader>
+                <CardContent className="p-5 space-y-6">
+                  {/* Simulation Controls Form */}
+                  <div className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="sim-vector-select" className="text-xs font-semibold text-white block mb-1.5">
+                          {t.simVectorLabel}
+                        </label>
+                        <select
+                          id="sim-vector-select"
+                          value={simVector}
+                          onChange={(e) => setSimVector(e.target.value)}
+                          className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="http_flood">{t.simVectorHttpFlood}</option>
+                          <option value="sql_probe">{t.simVectorSqlProbe}</option>
+                          <option value="bad_bot">{t.simVectorBadBot}</option>
+                          <option value="pow_challenge">{t.simVectorPowChallenge}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="sim-intensity-select" className="text-xs font-semibold text-white block mb-1.5">
+                          {t.simDurationLabel}
+                        </label>
+                        <select
+                          id="sim-intensity-select"
+                          value={simIntensity}
+                          onChange={(e) => setSimIntensity(e.target.value)}
+                          className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="25">Light Test: 25 requests</option>
+                          <option value="50">Standard Burst: 50 requests</option>
+                          <option value="100">Intense Flood: 100 requests</option>
+                          <option value="200">Stress Spike: 200 requests</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="cyber"
+                      onClick={handleLaunchSimulation}
+                      disabled={simRunning}
+                      aria-label="Launch Attack Simulation"
+                      className="w-full sm:w-auto text-xs font-bold gap-2"
+                    >
+                      <Send className={`w-3.5 h-3.5 ${simRunning ? "animate-spin" : ""}`} />
+                      {simRunning ? t.simRunning : t.btnLaunchSim}
+                    </Button>
+                  </div>
+
+                  {/* Simulation Results Report */}
+                  {simReport && (
+                    <div className="p-5 rounded-xl bg-[#090d16] border border-primary/30 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
+                        <div className="flex items-center gap-2">
+                          <ServerCrash className="w-5 h-5 text-primary" />
+                          <span className="font-bold text-sm text-white">{t.simResultsTitle}</span>
+                        </div>
+                        <Badge variant="default" className="font-mono text-xs">
+                          {simReport.deflection_rate} DEFLECTED
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
+                          <div className="text-[10px] text-muted-foreground">{t.simTotalSent}</div>
+                          <div className="text-base font-black text-white mt-0.5">{simReport.total_packets} reqs</div>
+                        </div>
+
+                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
+                          <div className="text-[10px] text-muted-foreground">{t.simDeflected}</div>
+                          <div className="text-base font-black text-primary mt-0.5">{simReport.packets_blocked} dropped</div>
+                        </div>
+
+                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
+                          <div className="text-[10px] text-muted-foreground">{t.simAvgLatency}</div>
+                          <div className="text-base font-black text-emerald-400 mt-0.5">{simReport.avg_packet_latency_ms}</div>
+                        </div>
+
+                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
+                          <div className="text-[10px] text-muted-foreground">{t.simDeflectionRate}</div>
+                          <div className="text-base font-black text-primary mt-0.5">{simReport.deflection_rate}</div>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-[#070a12] rounded-lg border border-primary/20 font-mono text-xs text-muted-foreground">
+                        <span className="text-primary font-bold">Defense Reaction: </span>
+                        {simReport.mitigation_reason}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* VIEW: CUSTOM WAF RULE BUILDER */}
+          {currentNav === "custom_waf" && (
+            <Card className="border-primary/20 bg-card/85">
+              <CardHeader className="border-b border-border/80 pb-4">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" /> {t.customWafTitle}
+                </CardTitle>
+                <CardDescription className="text-[11px]">{t.customWafDesc}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-5 space-y-6">
+                {/* Add Rule Form */}
+                <form onSubmit={handleCreateCustomRule} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
+                  <div className="text-xs font-bold text-white">{t.btnAddRule}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label htmlFor="custom-waf-name" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.ruleNameLabel}
+                      </label>
+                      <Input
+                        id="custom-waf-name"
+                        placeholder="e.g. Block WP Scanners"
+                        value={ruleName}
+                        onChange={(e) => setRuleName(e.target.value)}
+                        required
+                        className="text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="custom-waf-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.ruleFieldLabel}
+                      </label>
+                      <select
+                        id="custom-waf-field"
+                        value={ruleField}
+                        onChange={(e: any) => setRuleField(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="uri">{t.fieldUri}</option>
+                        <option value="user_agent">{t.fieldUserAgent}</option>
+                        <option value="query">{t.fieldQuery}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="custom-waf-op" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.ruleOperatorLabel}
+                      </label>
+                      <select
+                        id="custom-waf-op"
+                        value={ruleOp}
+                        onChange={(e: any) => setRuleOp(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="contains">{t.opContains}</option>
+                        <option value="equals">{t.opEquals}</option>
+                        <option value="regex">{t.opRegex}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="custom-waf-action" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.ruleActionLabel}
+                      </label>
+                      <select
+                        id="custom-waf-action"
+                        value={ruleAction}
+                        onChange={(e: any) => setRuleAction(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="DROP">{t.actDrop}</option>
+                        <option value="CHALLENGE">{t.actChallenge}</option>
+                        <option value="LOG">{t.actLog}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="custom-waf-val" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                      {t.ruleValueLabel}
+                    </label>
+                    <Input
+                      id="custom-waf-val"
+                      placeholder="e.g. /wp-login.php or python-requests"
+                      value={ruleVal}
+                      onChange={(e) => setRuleVal(e.target.value)}
+                      required
+                      className="text-xs font-mono"
+                    />
+                  </div>
+
+                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Deploy WAF rule">
+                    <Plus className="w-3.5 h-3.5" /> {t.btnAddRule}
+                  </Button>
+                </form>
+
+                {/* Rules Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
+                      <tr>
+                        <th className="py-3 px-4">{t.tableRuleName}</th>
+                        <th className="py-3 px-4">{t.tableRuleCondition}</th>
+                        <th className="py-3 px-4">{t.tableRuleAction}</th>
+                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {customWafRules.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                            {t.noCustomRules}
+                          </td>
+                        </tr>
+                      ) : (
+                        customWafRules.map((rule) => (
+                          <tr key={rule.id} className="hover:bg-accent/40 transition">
+                            <td className="py-3 px-4 font-bold text-white">{rule.name}</td>
+                            <td className="py-3 px-4 font-mono text-muted-foreground">
+                              <span className="text-primary font-bold uppercase text-[10px] mr-1">{rule.field}</span>
+                              <span className="text-[10px] mr-1">({rule.operator})</span>
+                              <code className="text-sky-300 bg-black/40 px-1.5 py-0.5 rounded text-[11px]">{rule.value}</code>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant={rule.action === "DROP" ? "destructive" : "default"} className="text-[10px]">
+                                {rule.action}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                aria-label={`Delete rule ${rule.name}`}
+                                onClick={() => handleDeleteCustomRule(rule.id)}
+                                className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* VIEW: BACKEND UPSTREAM PROXIES */}
+          {currentNav === "upstreams" && (
+            <Card className="border-primary/20 bg-card/85">
+              <CardHeader className="border-b border-border/80 pb-4">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Server className="w-4 h-4 text-primary" /> {t.upstreamTitle}
+                </CardTitle>
+                <CardDescription className="text-[11px]">{t.upstreamDesc}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-5 space-y-6">
+                {/* Add Upstream Form */}
+                <form onSubmit={handleAddUpstream} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
+                  <div className="text-xs font-bold text-white">{t.btnAddUpstream}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label htmlFor="ups-host-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.upstreamHostLabel}
+                      </label>
+                      <Input
+                        id="ups-host-input"
+                        placeholder="e.g. 192.168.1.100"
+                        value={newUpsHost}
+                        onChange={(e) => setNewUpsHost(e.target.value)}
+                        required
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="ups-port-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.upstreamPortLabel}
+                      </label>
+                      <Input
+                        id="ups-port-input"
+                        type="number"
+                        placeholder="80"
+                        value={newUpsPort}
+                        onChange={(e) => setNewUpsPort(e.target.value)}
+                        required
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="ups-protocol-select" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.upstreamProtocolLabel}
+                      </label>
+                      <select
+                        id="ups-protocol-select"
+                        value={newUpsProtocol}
+                        onChange={(e: any) => setNewUpsProtocol(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="http">HTTP</option>
+                        <option value="https">HTTPS</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="ups-weight-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.upstreamWeightLabel}
+                      </label>
+                      <Input
+                        id="ups-weight-input"
+                        type="number"
+                        placeholder="1"
+                        value={newUpsWeight}
+                        onChange={(e) => setNewUpsWeight(e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Add upstream server">
+                    <Plus className="w-3.5 h-3.5" /> {t.btnAddUpstream}
+                  </Button>
+                </form>
+
+                {/* Upstream Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
+                      <tr>
+                        <th className="py-3 px-4">{t.tableTarget}</th>
+                        <th className="py-3 px-4">{t.tableHealth}</th>
+                        <th className="py-3 px-4">{t.tableWeight}</th>
+                        <th className="py-3 px-4">{t.tableLatency}</th>
+                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {upstreams.map((ups) => (
+                        <tr key={ups.id} className="hover:bg-accent/40 transition">
+                          <td className="py-3 px-4 font-mono font-bold text-white flex items-center gap-2">
+                            <Server className="w-3.5 h-3.5 text-primary" />
+                            <span>{ups.protocol}://{ups.host}:{ups.port}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="default" className="text-[10px]">
+                              {t.statusHealthy}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-muted-foreground">weight: {ups.weight}</td>
+                          <td className="py-3 px-4 font-mono text-emerald-400">{ups.latency_ms} ms</td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Delete upstream ${ups.host}`}
+                              onClick={() => handleDeleteUpstream(ups.id)}
+                              className="text-destructive hover:bg-destructive/10 text-xs h-7"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* VIEW: SSL & DOMAINS */}
+          {currentNav === "ssl" && (
+            <Card className="border-primary/20 bg-card/85">
+              <CardHeader className="border-b border-border/80 pb-4">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary" /> {t.sslTitle}
+                </CardTitle>
+                <CardDescription className="text-[11px]">{t.sslDesc}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-5 space-y-6">
+                {/* Register Domain Form */}
+                <form onSubmit={handleAddDomain} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
+                  <div className="text-xs font-bold text-white">{t.btnAddDomain}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="domain-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.domainNameLabel}
+                      </label>
+                      <Input
+                        id="domain-input"
+                        placeholder="e.g. defense.example.com"
+                        value={newDomain}
+                        onChange={(e) => setNewDomain(e.target.value)}
+                        required
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="issuer-select" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.sslIssuerLabel}
+                      </label>
+                      <select
+                        id="issuer-select"
+                        value={newIssuer}
+                        onChange={(e: any) => setNewIssuer(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="letsencrypt">{t.sslIssuerLetsEncrypt}</option>
+                        <option value="custom">{t.sslIssuerCustom}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Register domain">
+                    <Plus className="w-3.5 h-3.5" /> {t.btnAddDomain}
+                  </Button>
+                </form>
+
+                {/* Domains List */}
+                <div className="space-y-3">
+                  {sslDomains.map((dom) => (
+                    <div
+                      key={dom.id}
+                      className="p-4 rounded-xl bg-secondary/20 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-primary" />
+                          <span className="font-mono font-bold text-white text-sm">{dom.domain}</span>
+                          <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400">
+                            SSL ACTIVE ({dom.days_remaining}d left)
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Issuer: {dom.issuer === "letsencrypt" ? "Let's Encrypt Authority" : "Custom Certificate"}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={dom.force_https ? "cyber" : "outline"}
+                          onClick={() => handleToggleSslFlag(dom.id, "force_https")}
+                          className="text-[10px] h-7 px-2"
+                        >
+                          HTTPS Force: {dom.force_https ? "ON" : "OFF"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={dom.tls13_strict ? "cyber" : "outline"}
+                          onClick={() => handleToggleSslFlag(dom.id, "tls13_strict")}
+                          className="text-[10px] h-7 px-2"
+                        >
+                          TLS 1.3: {dom.tls13_strict ? "ON" : "OFF"}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDeleteDomain(dom.id)}
+                          className="text-destructive hover:bg-destructive/10 h-7 w-7"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* VIEW: IP INTELLIGENCE LOOKUP */}
@@ -1920,12 +2733,12 @@ export default function EnterpriseAdminDashboard() {
             </Card>
           )}
 
-          {/* VIEW: WAF RULES */}
+          {/* VIEW: WAF SIGNATURES */}
           {currentNav === "waf" && (
             <Card className="border-primary/20 bg-card/85">
               <CardHeader className="border-b border-border/80 pb-4">
                 <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" /> {t.wafTitle}
+                  <ShieldAlert className="w-4 h-4 text-primary" /> {t.wafTitle}
                 </CardTitle>
                 <CardDescription className="text-[11px]">{t.wafDesc}</CardDescription>
               </CardHeader>

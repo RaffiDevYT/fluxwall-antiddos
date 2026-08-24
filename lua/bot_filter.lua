@@ -132,4 +132,65 @@ function _M.check_request()
     return false, nil
 end
 
+-- 6. Dynamic Custom WAF Rules Evaluator from Redis
+function _M.check_custom_rules(red)
+    if not red then
+        return false, nil, nil
+    end
+
+    local rules_json, err = red:get("waf:custom_rules")
+    if not rules_json or rules_json == ngx.null then
+        return false, nil, nil
+    end
+
+    local cjson = require "cjson.safe"
+    local rules = cjson.decode(rules_json)
+    if not rules or type(rules) ~= "table" then
+        return false, nil, nil
+    end
+
+    local headers = ngx.req.get_headers()
+    local uri = ngx.var.uri or "/"
+    local query = ngx.var.query_string or ""
+    local user_agent = headers["user-agent"] or ""
+
+    for _, rule in ipairs(rules) do
+        if rule.enabled then
+            local target_val = ""
+            if rule.field == "uri" then
+                target_val = uri
+            elseif rule.field == "user_agent" then
+                target_val = user_agent
+            elseif rule.field == "query" then
+                target_val = query
+            end
+
+            local lower_target_val = string.lower(target_val)
+            local lower_pattern = string.lower(rule.value or "")
+            local is_matched = false
+
+            if rule.operator == "contains" then
+                if string.find(lower_target_val, lower_pattern, 1, true) then
+                    is_matched = true
+                end
+            elseif rule.operator == "equals" then
+                if lower_target_val == lower_pattern then
+                    is_matched = true
+                end
+            elseif rule.operator == "regex" then
+                if ngx.re.find(lower_target_val, rule.value, "ijo") then
+                    is_matched = true
+                end
+            end
+
+            if is_matched then
+                return true, "CUSTOM_WAF_RULE: " .. (rule.name or "Unnamed"), rule.action or "DROP"
+            end
+        end
+    end
+
+    return false, nil, nil
+end
+
 return _M
+

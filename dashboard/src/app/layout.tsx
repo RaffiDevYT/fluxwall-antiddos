@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "FluxWall | Cyber Defense Command Center",
+  title: "FluxWall | Dashboard",
   description: "High-Performance Edge Anti-DDoS, Rate Limiting & Bot Mitigation Dashboard",
 };
 

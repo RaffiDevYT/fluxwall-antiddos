@@ -57,6 +57,40 @@ if is_bad_bot then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
+-- 4b. Step: Dynamic Custom WAF Rules Check
+local custom_blocked = false
+redis_pool.exec(function(red)
+    local is_custom_threat, custom_reason, custom_action = bot_filter.check_custom_rules(red)
+    if is_custom_threat and custom_action == "DROP" then
+        custom_blocked = true
+        metrics.inc("gateway_blocked_requests_total", { reason = "custom_waf" })
+        metrics.inc("gateway_http_requests_total", { status = "403", protection = "custom_waf", method = method })
+
+        logger.log_event("CUSTOM_WAF_BLOCKED", {
+            client_ip = client_ip,
+            uri = uri,
+            reason = custom_reason
+        })
+
+        ngx.status = ngx.HTTP_FORBIDDEN
+        ngx.header["Content-Type"] = "application/json; charset=utf-8"
+        ngx.header["X-Gateway-Protection"] = "custom-waf"
+        
+        local resp = {
+            error = "Forbidden",
+            message = "Access restricted by custom Layer-7 firewall rule.",
+            client_ip = client_ip,
+            reason = custom_reason,
+            timestamp = ngx.time()
+        }
+        ngx.say(cjson.encode(resp))
+    end
+end)
+
+if custom_blocked then
+    return ngx.exit(ngx.HTTP_FORBIDDEN)
+end
+
 -- 5. Step: GeoIP Country Filtering
 local geo_allowed, country_code, geo_reason = geoip.check_country(client_ip)
 if not geo_allowed then
