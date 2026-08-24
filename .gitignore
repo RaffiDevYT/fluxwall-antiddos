@@ -1,9 +1,11 @@
 # Dependencies
+**/node_modules/
 node_modules/
 .pnp/
 .pnp.js
 
 # Next.js build outputs
+**/.next/
 .next/
 out/
 build/
