@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getRedisClient } from "@/lib/redis";
-import { setMockCompleted } from "./status/route";
+import { setMockCompleted } from "@/lib/setup-state";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
     // Auto-login session cookie
     const token = "authenticated";
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set("__fluxwall_admin_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

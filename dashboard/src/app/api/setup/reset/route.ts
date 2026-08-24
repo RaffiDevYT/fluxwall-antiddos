@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getRedisClient } from "@/lib/redis";
-import { setMockCompleted } from "../status/route";
+import { setMockCompleted } from "@/lib/setup-state";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function GET() {
     setMockCompleted(false);
 
     // Clear session cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete("__fluxwall_admin_session");
 
     return NextResponse.json({
