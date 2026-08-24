@@ -46,6 +46,8 @@ import {
   AlertOctagon,
   Eye,
   EyeOff,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,6 +135,21 @@ interface AdminUserItem {
   created_at: string;
 }
 
+type NavSection =
+  | "overview"
+  | "analytics"
+  | "bans"
+  | "whitelist"
+  | "blacklist"
+  | "geoip"
+  | "lookup"
+  | "waf"
+  | "ratelimits"
+  | "users"
+  | "profile"
+  | "logs"
+  | "maintenance";
+
 export default function EnterpriseAdminDashboard() {
   const [lang, setLang] = useState<Language>("id");
   const t = translations[lang];
@@ -147,21 +164,8 @@ export default function EnterpriseAdminDashboard() {
     surge_mode: false,
   });
 
-  const [currentNav, setCurrentNav] = useState<
-    | "overview"
-    | "analytics"
-    | "bans"
-    | "whitelist"
-    | "blacklist"
-    | "geoip"
-    | "lookup"
-    | "waf"
-    | "ratelimits"
-    | "users"
-    | "profile"
-    | "logs"
-    | "maintenance"
-  >("overview");
+  const [currentNav, setCurrentNav] = useState<NavSection>("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [underAttackMode, setUnderAttackMode] = useState(false);
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -629,6 +633,11 @@ export default function EnterpriseAdminDashboard() {
     showToast("Audit logs exported to JSON file!");
   };
 
+  const handleNavSelect = (nav: NavSection) => {
+    setCurrentNav(nav);
+    setMobileMenuOpen(false);
+  };
+
   const filteredBans = bans.filter((b) => b.ip.toLowerCase().includes(searchFilter.toLowerCase()));
 
   // Analytics Chart Data
@@ -647,6 +656,239 @@ export default function EnterpriseAdminDashboard() {
     data: [142, 98, 64, 45, 38, 29, 18, 12],
   };
 
+  // Reusable Sidebar Nav Content
+  const renderNavLinks = () => (
+    <div className="p-4 space-y-6">
+      {/* Section 1: Monitoring */}
+      <div>
+        <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+          {t.navMonitoring}
+        </span>
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNavSelect("overview")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "overview"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4 text-primary" />
+            <span>{t.navOverview}</span>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("analytics")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "analytics"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <PieChart className="w-4 h-4 text-primary" />
+            <span>{t.navAnalytics}</span>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("logs")}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "logs"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <RadioTower className="w-4 h-4 text-primary" />
+              <span>{t.navAttackLogs}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {liveLogs.length}
+            </Badge>
+          </button>
+        </div>
+      </div>
+
+      {/* Section 2: Security Policies */}
+      <div>
+        <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+          {t.navPolicies}
+        </span>
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNavSelect("lookup")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "lookup"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <Fingerprint className="w-4 h-4 text-primary" />
+            <span>{t.navIpLookup}</span>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("bans")}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "bans"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Lock className="w-4 h-4 text-primary" />
+              <span>{t.navBans}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {bans.length}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("whitelist")}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "whitelist"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span>{t.navWhitelist}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {whitelist.length}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("blacklist")}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "blacklist"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Ban className="w-4 h-4 text-primary" />
+              <span>{t.navBlacklist}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {blacklist.length}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("geoip")}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "geoip"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Globe className="w-4 h-4 text-primary" />
+              <span>{t.navGeoip}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {blockedCountries.length}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("waf")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "waf"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <Shield className="w-4 h-4 text-primary" />
+            <span>{t.navWaf}</span>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("ratelimits")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "ratelimits"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <Gauge className="w-4 h-4 text-primary" />
+            <span>{t.navRateLimits}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Section 3: Access & Administration */}
+      <div>
+        <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+          {t.navAdministration}
+        </span>
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNavSelect("users")}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "users"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Users className="w-4 h-4 text-primary" />
+              <span>{t.navUsers}</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
+              {adminUsers.length || 1}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => handleNavSelect("profile")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "profile"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <User className="w-4 h-4 text-primary" />
+            <span>{t.navProfile}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Section 4: System */}
+      <div>
+        <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+          {t.navSystem}
+        </span>
+        <div className="space-y-1">
+          <button
+            onClick={() => handleNavSelect("maintenance")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "maintenance"
+                ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-primary/5"
+            }`}
+          >
+            <Settings className="w-4 h-4 text-primary" />
+            <span>{t.navMaintenance}</span>
+          </button>
+
+          <Link href="/errors">
+            <div className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-white hover:bg-primary/5 transition cursor-pointer">
+              <div className="flex items-center gap-3">
+                <FileCode2 className="w-4 h-4 text-primary" />
+                <span>{t.navErrorShowcase}</span>
+              </div>
+              <ExternalLink className="w-3 h-3 text-muted-foreground" />
+            </div>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen bg-[#080b11] text-foreground bg-grid-cyber">
       {/* Toast Notification */}
@@ -657,7 +899,70 @@ export default function EnterpriseAdminDashboard() {
         </div>
       )}
 
-      {/* 1. Sleek Enterprise Sidebar (Left Column) */}
+      {/* Mobile Drawer Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 md:hidden animate-in fade-in duration-200"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Slide-out Drawer */}
+      <div
+        className={`fixed top-0 bottom-0 left-0 w-72 bg-[#090d16] border-r border-primary/20 z-50 md:hidden flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="overflow-y-auto">
+          {/* Drawer Header */}
+          <div className="h-16 px-5 border-b border-primary/20 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-primary/10 border border-primary/30 rounded-lg">
+                <ShieldAlert className="w-4 h-4 text-primary" />
+              </div>
+              <span className="font-bold text-xs text-white">{t.brandTitle}</span>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Close navigation drawer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="h-8 w-8 text-muted-foreground hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Drawer Links */}
+          {renderNavLinks()}
+        </div>
+
+        {/* Drawer Footer */}
+        <div className="p-4 border-t border-primary/20 bg-[#070a12]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
+                <UserCheck className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white leading-tight">{t.adminPortal}</div>
+                <div className="text-[10px] text-primary">{t.authenticated}</div>
+              </div>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Log out of admin session"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 1. Desktop Sleek Enterprise Sidebar (Left Column) */}
       <aside className="w-64 border-r border-primary/20 bg-[#090d16]/95 backdrop-blur-xl flex flex-col justify-between shrink-0 hidden md:flex min-h-screen sticky top-0">
         {/* Brand Header */}
         <div>
@@ -677,235 +982,7 @@ export default function EnterpriseAdminDashboard() {
           </div>
 
           {/* Navigation Links */}
-          <div className="p-4 space-y-6">
-            {/* Section 1: Monitoring */}
-            <div>
-              <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-                {t.navMonitoring}
-              </span>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setCurrentNav("overview")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "overview"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <LayoutDashboard className="w-4 h-4 text-primary" />
-                  <span>{t.navOverview}</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("analytics")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "analytics"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <PieChart className="w-4 h-4 text-primary" />
-                  <span>{t.navAnalytics}</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("logs")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "logs"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <RadioTower className="w-4 h-4 text-primary" />
-                    <span>{t.navAttackLogs}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                    {liveLogs.length}
-                  </Badge>
-                </button>
-              </div>
-            </div>
-
-            {/* Section 2: Security Policies */}
-            <div>
-              <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-                {t.navPolicies}
-              </span>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setCurrentNav("lookup")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "lookup"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <Fingerprint className="w-4 h-4 text-primary" />
-                  <span>{t.navIpLookup}</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("bans")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "bans"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Lock className="w-4 h-4 text-primary" />
-                    <span>{t.navBans}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                    {bans.length}
-                  </Badge>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("whitelist")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "whitelist"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck className="w-4 h-4 text-primary" />
-                    <span>{t.navWhitelist}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                    {whitelist.length}
-                  </Badge>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("blacklist")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "blacklist"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Ban className="w-4 h-4 text-primary" />
-                    <span>{t.navBlacklist}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                    {blacklist.length}
-                  </Badge>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("geoip")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "geoip"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Globe className="w-4 h-4 text-primary" />
-                    <span>{t.navGeoip}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                    {blockedCountries.length}
-                  </Badge>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("waf")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "waf"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <Shield className="w-4 h-4 text-primary" />
-                  <span>{t.navWaf}</span>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("ratelimits")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "ratelimits"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <Gauge className="w-4 h-4 text-primary" />
-                  <span>{t.navRateLimits}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Section 3: Access & Administration */}
-            <div>
-              <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-                {t.navAdministration}
-              </span>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setCurrentNav("users")}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "users"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span>{t.navUsers}</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                    {adminUsers.length || 1}
-                  </Badge>
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav("profile")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "profile"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <User className="w-4 h-4 text-primary" />
-                  <span>{t.navProfile}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Section 4: System */}
-            <div>
-              <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-                {t.navSystem}
-              </span>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setCurrentNav("maintenance")}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentNav === "maintenance"
-                      ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                      : "text-muted-foreground hover:text-white hover:bg-primary/5"
-                  }`}
-                >
-                  <Settings className="w-4 h-4 text-primary" />
-                  <span>{t.navMaintenance}</span>
-                </button>
-
-                <Link href="/errors">
-                  <div className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-white hover:bg-primary/5 transition cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <FileCode2 className="w-4 h-4 text-primary" />
-                      <span>{t.navErrorShowcase}</span>
-                    </div>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                  </div>
-                </Link>
-              </div>
-            </div>
-          </div>
+          {renderNavLinks()}
         </div>
 
         {/* Sidebar Footer (Admin Profile & Logout) */}
@@ -923,9 +1000,9 @@ export default function EnterpriseAdminDashboard() {
             <Button
               size="icon"
               variant="ghost"
+              aria-label="Log out of admin session"
               onClick={handleLogout}
               className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7"
-              title={t.logout}
             >
               <LogOut className="w-3.5 h-3.5" />
             </Button>
@@ -937,21 +1014,33 @@ export default function EnterpriseAdminDashboard() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
         <header className="h-16 border-b border-primary/20 bg-[#090d16]/85 backdrop-blur-xl px-4 md:px-8 flex items-center justify-between sticky top-0 z-40">
-          {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground font-medium hidden sm:inline">{t.dashboardBreadcrumb}</span>
+          {/* Mobile Hamburger & Breadcrumbs */}
+          <div className="flex items-center gap-2.5">
+            {/* Hamburger Button (Mobile Only) */}
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Open mobile navigation menu"
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden h-8 w-8 border-primary/30 text-primary hover:bg-primary/10 shrink-0"
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
+
+            <span className="text-muted-foreground font-medium hidden sm:inline text-xs">{t.dashboardBreadcrumb}</span>
             <ChevronRight className="w-3 h-3 text-muted-foreground hidden sm:inline" />
-            <span className="text-white font-bold uppercase tracking-wider font-mono text-[11px] text-primary">
+            <span className="text-white font-bold uppercase tracking-wider font-mono text-[11px] text-primary truncate max-w-[120px] sm:max-w-none">
               {currentNav}
             </span>
           </div>
 
           {/* Master Under Attack Toggle, Language Selector & Diagnostics */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {/* Language Switcher (ID / EN) */}
             <div className="flex items-center bg-secondary/50 rounded-lg p-0.5 border border-primary/20">
               <button
                 onClick={() => changeLanguage("id")}
+                aria-label="Ganti bahasa ke Bahasa Indonesia"
                 className={`px-2 py-1 text-[11px] font-bold rounded-md transition ${
                   lang === "id" ? "bg-primary text-black" : "text-muted-foreground hover:text-white"
                 }`}
@@ -960,6 +1049,7 @@ export default function EnterpriseAdminDashboard() {
               </button>
               <button
                 onClick={() => changeLanguage("en")}
+                aria-label="Switch language to English"
                 className={`px-2 py-1 text-[11px] font-bold rounded-md transition ${
                   lang === "en" ? "bg-primary text-black" : "text-muted-foreground hover:text-white"
                 }`}
@@ -972,6 +1062,7 @@ export default function EnterpriseAdminDashboard() {
             <Button
               size="sm"
               variant={underAttackMode ? "cyber" : "outline"}
+              aria-label="Toggle Under Attack Mode"
               onClick={toggleUnderAttackMode}
               className={`gap-1.5 text-xs font-bold ${
                 underAttackMode
@@ -980,24 +1071,26 @@ export default function EnterpriseAdminDashboard() {
               }`}
             >
               <Power className="w-3.5 h-3.5" />
-              {underAttackMode ? t.underAttackOn : t.underAttackOff}
+              <span className="hidden sm:inline">{underAttackMode ? t.underAttackOn : t.underAttackOff}</span>
+              <span className="sm:hidden">{underAttackMode ? "ATTACK ON" : "NORMAL"}</span>
             </Button>
 
             {/* Terminus Health Inspector Button */}
             <Button
               variant="outline"
               size="sm"
+              aria-label="Open Terminus diagnostics inspector"
               onClick={() => {
                 fetchHealth();
                 setShowHealthModal(true);
               }}
-              className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+              className="gap-2 border-primary/30 text-primary hover:bg-primary/10 px-2.5"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
-              <span className="font-medium text-xs hidden sm:inline">
+              <span className="font-medium text-xs hidden lg:inline">
                 {health?.status === "ok" ? t.terminusHealthy : t.terminusDiagnostics}
               </span>
             </Button>
@@ -1120,8 +1213,11 @@ export default function EnterpriseAdminDashboard() {
                   <CardContent>
                     <form onSubmit={handleManualBan} className="space-y-3">
                       <div>
-                        <label className="text-[11px] font-medium text-muted-foreground block mb-1">{t.targetIp}</label>
+                        <label htmlFor="quick-ban-ip" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                          {t.targetIp}
+                        </label>
                         <Input
+                          id="quick-ban-ip"
                           placeholder="e.g. 198.51.100.44"
                           value={banIp}
                           onChange={(e) => setBanIp(e.target.value)}
@@ -1129,8 +1225,11 @@ export default function EnterpriseAdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] font-medium text-muted-foreground block mb-1">{t.banDuration}</label>
+                        <label htmlFor="quick-ban-duration" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                          {t.banDuration}
+                        </label>
                         <select
+                          id="quick-ban-duration"
                           value={banDuration}
                           onChange={(e) => setBanDuration(e.target.value)}
                           className="w-full h-9 rounded-lg border border-input bg-card/60 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1141,7 +1240,7 @@ export default function EnterpriseAdminDashboard() {
                           <option value="86400">{t.dur24Hours}</option>
                         </select>
                       </div>
-                      <Button type="submit" variant="cyber" className="w-full mt-2 gap-2 font-bold">
+                      <Button type="submit" variant="cyber" className="w-full mt-2 gap-2 font-bold" aria-label="Execute Quick IP Quarantine">
                         <Ban className="w-3.5 h-3.5" /> {t.executeBan}
                       </Button>
                     </form>
@@ -1198,6 +1297,7 @@ export default function EnterpriseAdminDashboard() {
                   <div className="flex gap-2 max-w-xl">
                     <Input
                       placeholder={t.searchIpPlaceholder}
+                      aria-label="Search IP Address"
                       value={lookupTargetIp}
                       onChange={(e) => setLookupTargetIp(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleExecuteLookup()}
@@ -1205,6 +1305,7 @@ export default function EnterpriseAdminDashboard() {
                     />
                     <Button
                       variant="cyber"
+                      aria-label="Execute IP Lookup"
                       onClick={() => handleExecuteLookup()}
                       disabled={lookupLoading}
                       className="gap-2 shrink-0 text-xs font-bold"
@@ -1294,6 +1395,7 @@ export default function EnterpriseAdminDashboard() {
                           <Button
                             size="sm"
                             variant="outline"
+                            aria-label={`Unban IP ${lookupResult.ip}`}
                             onClick={() => handleUnban(lookupResult.ip)}
                             className="text-xs border-primary/30 text-primary hover:bg-primary/20 gap-1.5"
                           >
@@ -1303,6 +1405,7 @@ export default function EnterpriseAdminDashboard() {
                           <Button
                             size="sm"
                             variant="cyber"
+                            aria-label={`Ban IP ${lookupResult.ip}`}
                             onClick={async () => {
                               await fetch("/api/bans", {
                                 method: "POST",
@@ -1321,6 +1424,7 @@ export default function EnterpriseAdminDashboard() {
                         <Button
                           size="sm"
                           variant="outline"
+                          aria-label={`Whitelist IP ${lookupResult.ip}`}
                           onClick={async () => {
                             await fetch("/api/whitelist", {
                               method: "POST",
@@ -1338,6 +1442,7 @@ export default function EnterpriseAdminDashboard() {
                         <Button
                           size="sm"
                           variant="outline"
+                          aria-label={`Blacklist IP ${lookupResult.ip}`}
                           onClick={async () => {
                             await fetch("/api/blacklist", {
                               method: "POST",
@@ -1374,8 +1479,11 @@ export default function EnterpriseAdminDashboard() {
                   <div className="text-xs font-bold text-white">{t.btnAddUser}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">{t.usernameLabel}</label>
+                      <label htmlFor="new-admin-user" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.usernameLabel}
+                      </label>
                       <Input
+                        id="new-admin-user"
                         placeholder="e.g. security_lead"
                         value={newUsername}
                         onChange={(e) => setNewUsername(e.target.value)}
@@ -1384,8 +1492,11 @@ export default function EnterpriseAdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">{t.passwordLabel}</label>
+                      <label htmlFor="new-admin-pass" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.passwordLabel}
+                      </label>
                       <Input
+                        id="new-admin-pass"
                         type="password"
                         placeholder="••••••••"
                         value={newUserPassword}
@@ -1395,8 +1506,11 @@ export default function EnterpriseAdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">{t.roleLabel}</label>
+                      <label htmlFor="new-admin-role" className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        {t.roleLabel}
+                      </label>
                       <select
+                        id="new-admin-role"
                         value={newUserRole}
                         onChange={(e: any) => setNewUserRole(e.target.value)}
                         className="w-full h-9 rounded-lg border border-input bg-card/60 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1407,7 +1521,7 @@ export default function EnterpriseAdminDashboard() {
                       </select>
                     </div>
                   </div>
-                  <Button type="submit" variant="cyber" className="text-xs gap-1.5 font-bold mt-2">
+                  <Button type="submit" variant="cyber" className="text-xs gap-1.5 font-bold mt-2" aria-label="Add new admin user">
                     <Plus className="w-3.5 h-3.5" /> {t.btnAddUser}
                   </Button>
                 </form>
@@ -1451,6 +1565,7 @@ export default function EnterpriseAdminDashboard() {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                aria-label={`Delete user ${user.username}`}
                                 onClick={() => handleDeleteUser(user.username)}
                                 className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
                               >
@@ -1499,6 +1614,7 @@ export default function EnterpriseAdminDashboard() {
                       <Button
                         size="icon"
                         variant="ghost"
+                        aria-label="Toggle API Key visibility"
                         onClick={() => setShowApiKey(!showApiKey)}
                         className="h-6 w-6 text-muted-foreground hover:text-white"
                       >
@@ -1510,11 +1626,13 @@ export default function EnterpriseAdminDashboard() {
                         type={showApiKey ? "text" : "password"}
                         value={profileApiKey}
                         readOnly
+                        aria-label="API Key value"
                         className="font-mono text-xs text-primary bg-[#070a12]"
                       />
                       <Button
                         variant="outline"
                         size="sm"
+                        aria-label="Copy API Key to clipboard"
                         onClick={() => {
                           navigator.clipboard.writeText(profileApiKey);
                           showToast("API Key copied to clipboard!");
@@ -1527,6 +1645,7 @@ export default function EnterpriseAdminDashboard() {
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label="Regenerate REST API Key"
                       onClick={handleRegenerateApiKey}
                       className="text-[11px] border-primary/30 text-muted-foreground hover:text-primary mt-1 gap-1.5"
                     >
@@ -1547,10 +1666,11 @@ export default function EnterpriseAdminDashboard() {
                 <CardContent className="p-5">
                   <form onSubmit={handleChangePassword} className="space-y-4">
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                      <label htmlFor="new-admin-password-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
                         {t.newPassLabel}
                       </label>
                       <Input
+                        id="new-admin-password-field"
                         type="password"
                         placeholder="••••••••"
                         value={newPassword}
@@ -1560,10 +1680,11 @@ export default function EnterpriseAdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                      <label htmlFor="confirm-admin-password-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
                         {t.confirmPassLabel}
                       </label>
                       <Input
+                        id="confirm-admin-password-field"
                         type="password"
                         placeholder="••••••••"
                         value={confirmPassword}
@@ -1572,7 +1693,7 @@ export default function EnterpriseAdminDashboard() {
                         className="text-xs"
                       />
                     </div>
-                    <Button type="submit" variant="cyber" className="w-full text-xs font-bold gap-2">
+                    <Button type="submit" variant="cyber" className="w-full text-xs font-bold gap-2" aria-label="Save new administrator password">
                       <Lock className="w-3.5 h-3.5" /> {t.btnSavePass}
                     </Button>
                   </form>
@@ -1595,6 +1716,7 @@ export default function EnterpriseAdminDashboard() {
                   <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-muted-foreground" />
                   <Input
                     placeholder={t.searchOffender}
+                    aria-label="Search Quarantined IP"
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
                     className="pl-8 text-xs"
@@ -1633,6 +1755,7 @@ export default function EnterpriseAdminDashboard() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                aria-label={`Unban IP ${ban.ip}`}
                                 onClick={() => handleUnban(ban.ip)}
                                 className="gap-1.5 text-[11px] h-7 border-primary/30 text-primary hover:bg-primary/20"
                               >
@@ -1662,11 +1785,12 @@ export default function EnterpriseAdminDashboard() {
                 <form onSubmit={handleAddWhitelist} className="flex gap-2 max-w-lg">
                   <Input
                     placeholder={t.trustedIpPlaceholder}
+                    aria-label="Whitelist IP Address"
                     value={whitelistIp}
                     onChange={(e) => setWhitelistIp(e.target.value)}
                     required
                   />
-                  <Button type="submit" variant="cyber" className="gap-1.5 shrink-0 font-bold">
+                  <Button type="submit" variant="cyber" aria-label="Add IP to Whitelist" className="gap-1.5 shrink-0 font-bold">
                     <Plus className="w-4 h-4" /> {t.btnAddWhitelist}
                   </Button>
                 </form>
@@ -1683,6 +1807,7 @@ export default function EnterpriseAdminDashboard() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          aria-label={`Remove IP ${ip} from whitelist`}
                           onClick={() => handleRemoveWhitelist(ip)}
                           className="text-muted-foreground hover:text-primary h-7 w-7"
                         >
@@ -1709,11 +1834,12 @@ export default function EnterpriseAdminDashboard() {
                 <form onSubmit={handleAddBlacklist} className="flex gap-2 max-w-lg">
                   <Input
                     placeholder={t.maliciousIpPlaceholder}
+                    aria-label="Blacklist IP Address"
                     value={blacklistIp}
                     onChange={(e) => setBlacklistIp(e.target.value)}
                     required
                   />
-                  <Button type="submit" variant="cyber" className="gap-1.5 shrink-0 font-bold">
+                  <Button type="submit" variant="cyber" aria-label="Add IP to Blacklist" className="gap-1.5 shrink-0 font-bold">
                     <Plus className="w-4 h-4" /> {t.btnAddBlacklist}
                   </Button>
                 </form>
@@ -1730,6 +1856,7 @@ export default function EnterpriseAdminDashboard() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          aria-label={`Remove IP ${ip} from blacklist`}
                           onClick={() => handleRemoveBlacklist(ip)}
                           className="text-muted-foreground hover:text-primary h-7 w-7"
                         >
@@ -1756,12 +1883,13 @@ export default function EnterpriseAdminDashboard() {
                 <form onSubmit={handleAddCountry} className="flex gap-2 max-w-lg">
                   <Input
                     placeholder={t.countryCodePlaceholder}
+                    aria-label="Country ISO code to block"
                     value={newCountryCode}
                     onChange={(e) => setNewCountryCode(e.target.value.toUpperCase())}
                     maxLength={2}
                     required
                   />
-                  <Button type="submit" variant="cyber" className="gap-1.5 shrink-0 font-bold">
+                  <Button type="submit" variant="cyber" aria-label="Block country code" className="gap-1.5 shrink-0 font-bold">
                     <Plus className="w-4 h-4" /> {t.btnBlockCountry}
                   </Button>
                 </form>
@@ -1779,6 +1907,7 @@ export default function EnterpriseAdminDashboard() {
                       <Button
                         size="icon"
                         variant="ghost"
+                        aria-label={`Unblock country ${code}`}
                         onClick={() => handleRemoveCountry(code)}
                         className="text-muted-foreground hover:text-primary h-6 w-6"
                       >
@@ -1858,10 +1987,11 @@ export default function EnterpriseAdminDashboard() {
               <CardContent className="p-5 space-y-4 max-w-2xl">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-semibold text-white block mb-1">
+                    <label htmlFor="ratelimit-general-input" className="text-xs font-semibold text-white block mb-1">
                       {t.perIpLimit}: <span className="font-mono text-primary font-bold">{rateLimitGeneral} req/sec</span>
                     </label>
                     <Input
+                      id="ratelimit-general-input"
                       type="number"
                       value={rateLimitGeneral}
                       onChange={(e) => setRateLimitGeneral(e.target.value)}
@@ -1870,10 +2000,11 @@ export default function EnterpriseAdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-white block mb-1">
+                    <label htmlFor="ratelimit-burst-input" className="text-xs font-semibold text-white block mb-1">
                       {t.maxBurstBucket}: <span className="font-mono text-primary font-bold">{rateLimitBurst} tokens</span>
                     </label>
                     <Input
+                      id="ratelimit-burst-input"
                       type="number"
                       value={rateLimitBurst}
                       onChange={(e) => setRateLimitBurst(e.target.value)}
@@ -1883,6 +2014,7 @@ export default function EnterpriseAdminDashboard() {
 
                   <Button
                     variant="cyber"
+                    aria-label="Save Rate Limit policies"
                     onClick={() => showToast(`Rate Limit policy updated: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})`)}
                     className="gap-2 text-xs font-bold mt-2"
                   >
@@ -1903,7 +2035,7 @@ export default function EnterpriseAdminDashboard() {
                   </CardTitle>
                   <CardDescription className="text-[11px]">{t.noThreatsRecorded}</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={exportLogsAsJson} className="gap-1.5 text-xs text-primary border-primary/30">
+                <Button size="sm" variant="outline" aria-label="Export audit logs to JSON" onClick={exportLogsAsJson} className="gap-1.5 text-xs text-primary border-primary/30">
                   <Download className="w-3.5 h-3.5" /> {t.btnExportJson}
                 </Button>
               </CardHeader>
@@ -1955,6 +2087,7 @@ export default function EnterpriseAdminDashboard() {
                     <Button
                       size="sm"
                       variant="outline"
+                      aria-label="Flush violations cache"
                       onClick={() => handleGatewayAction("flush_violations", t.btnClearViolations)}
                       className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
                     >
@@ -1968,6 +2101,7 @@ export default function EnterpriseAdminDashboard() {
                     <Button
                       size="sm"
                       variant="outline"
+                      aria-label="Reset global threat counter"
                       onClick={() => handleGatewayAction("reset_threat_counter", t.btnResetThreats)}
                       className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
                     >
@@ -1981,6 +2115,7 @@ export default function EnterpriseAdminDashboard() {
                     <Button
                       size="sm"
                       variant="outline"
+                      aria-label="Purge real-time attack logs"
                       onClick={() => handleGatewayAction("clear_logs", t.btnPurgeLogs)}
                       className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
                     >
@@ -2006,7 +2141,7 @@ export default function EnterpriseAdminDashboard() {
                   <CardDescription className="text-[11px]">{t.diagDesc}</CardDescription>
                 </div>
               </div>
-              <Button size="icon" variant="ghost" onClick={() => setShowHealthModal(false)} className="h-7 w-7">
+              <Button size="icon" variant="ghost" aria-label="Close diagnostics dialog" onClick={() => setShowHealthModal(false)} className="h-7 w-7">
                 ✕
               </Button>
             </CardHeader>
@@ -2072,7 +2207,7 @@ export default function EnterpriseAdminDashboard() {
               </div>
             </CardContent>
             <div className="p-4 border-t border-border/80 flex justify-end">
-              <Button variant="secondary" size="sm" onClick={() => setShowHealthModal(false)}>
+              <Button variant="secondary" size="sm" aria-label="Close diagnostics inspector" onClick={() => setShowHealthModal(false)}>
                 {t.btnCloseDiag}
               </Button>
             </div>
