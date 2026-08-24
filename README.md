@@ -198,15 +198,15 @@ scrape_configs:
 
 ```text
 .
-├── admin/                      # Web Admin Dashboard SPA
-│   ├── index.html              # Cyber Defense UI Layout
-│   ├── app.js                  # Live streaming Chart.js & REST API controller
-│   └── style.css               # Dark-mode glassmorphism styling
 ├── bin/                        # Binary & Utility Scripts
 │   └── fluxwall.sh             # Gateway management CLI tool
 ├── conf/                       # Nginx Configuration
 │   ├── nginx.conf              # Main reverse proxy configuration & shared memory zones
 │   └── mime.types              # MIME types definitions
+├── dashboard/                  # Full-Stack Next.js 15 Cyber Defense Dashboard
+│   ├── src/                    # App Router, Terminus health API, components & lib
+│   ├── Dockerfile              # Multi-stage standalone Next.js build
+│   └── package.json
 ├── docker/                     # Mock backend container
 │   └── backend/
 │       └── server.js
