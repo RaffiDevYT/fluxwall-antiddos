@@ -31,24 +31,23 @@
   border-color: hsl(var(--border));
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
   color: hsl(var(--foreground));
-  background-color: hsl(var(--background));
-  font-feature-settings: "rlig" 1, "calt" 1;
+  background-color: #080b11;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Custom Cyber Shimmer & Glow */
 .glow-primary {
-  box-shadow: 0 0 35px -5px rgba(56, 189, 248, 0.2);
-}
-.glow-danger {
-  box-shadow: 0 0 35px -5px rgba(239, 68, 68, 0.25);
-}
-.glow-success {
-  box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 25px -5px rgba(56, 189, 248, 0.15);
 }
 
-/* Cyber Grid Background */
+/* Cyber Grid Background (hardware-accelerated, will-change optimize) */
 .bg-grid-cyber {
   background-size: 32px 32px;
   background-image: 

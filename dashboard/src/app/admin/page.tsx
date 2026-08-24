@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ShieldAlert,
@@ -47,20 +48,6 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Filler,
-  Legend,
-} from "chart.js";
-import { Line, Doughnut, Bar } from "react-chartjs-2";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,17 +55,30 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { translations, Language } from "@/lib/i18n";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Filler,
-  Legend
+// Lazy-load heavy Chart.js modules asynchronously (Huge Lighthouse Performance Boost)
+const TelemetryChart = dynamic(() => import("@/components/charts/telemetry-chart"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-56 w-full flex items-center justify-center bg-secondary/10 rounded-xl border border-primary/10 animate-pulse">
+      <Activity className="w-6 h-6 text-primary/40 animate-spin" />
+    </div>
+  ),
+});
+
+const ThreatVectorChart = dynamic(
+  () => import("@/components/charts/analytics-charts").then((m) => m.ThreatVectorChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-56 w-56 bg-secondary/20 rounded-full animate-pulse" />,
+  }
+);
+
+const TopCountriesChart = dynamic(
+  () => import("@/components/charts/analytics-charts").then((m) => m.TopCountriesChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-56 w-full bg-secondary/20 rounded-xl animate-pulse" />,
+  }
 );
 
 interface HealthData {
@@ -132,7 +132,6 @@ interface AdminUserItem {
   username: string;
   role: "super_admin" | "security_analyst" | "auditor";
   created_at: string;
-  last_login?: string;
 }
 
 export default function EnterpriseAdminDashboard() {
@@ -205,6 +204,10 @@ export default function EnterpriseAdminDashboard() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Lightweight Telemetry Data Points
+  const [chartLabels, setChartLabels] = useState<string[]>(() => Array(20).fill(""));
+  const [chartPoints, setChartPoints] = useState<number[]>(() => Array(20).fill(0));
+
   // Load language preference
   useEffect(() => {
     const savedLang = localStorage.getItem("fluxwall_lang") as Language;
@@ -219,36 +222,9 @@ export default function EnterpriseAdminDashboard() {
     showToast(newLang === "id" ? "Bahasa diubah ke Bahasa Indonesia" : "Language switched to English");
   };
 
-  // Monochromatic Chart Telemetry
-  const [chartData, setChartData] = useState<{
-    labels: string[];
-    datasets: any[];
-  }>({
-    labels: Array(25).fill(""),
-    datasets: [
-      {
-        label: t.chartReqSec,
-        data: Array(25).fill(0),
-        borderColor: "#38bdf8",
-        backgroundColor: (context: any) => {
-          const ctx = context.chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 0, 220);
-          gradient.addColorStop(0, "rgba(56, 189, 248, 0.28)");
-          gradient.addColorStop(1, "rgba(56, 189, 248, 0.0)");
-          return gradient;
-        },
-        fill: true,
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-      },
-    ],
-  });
-
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   // Auth Check
@@ -270,31 +246,21 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  // Stats Fetch
-  const fetchStats = async () => {
+  // Unified Stats Polling
+  const fetchStats = useCallback(async () => {
     try {
       const res = await fetch("/api/stats", { cache: "no-store" });
       const json = await res.json();
       if (json.status === "success") {
         setStats(json.data);
-        const now = new Date();
-        const timeLabel = now.toLocaleTimeString();
+        const timeLabel = new Date().toLocaleTimeString();
         const actualQps = json.data.live_qps ?? 0;
 
-        setChartData((prev) => {
-          const newLabels = [...prev.labels.slice(1), timeLabel];
-          const newData = [...prev.datasets[0].data.slice(1), actualQps];
-          return {
-            ...prev,
-            labels: newLabels,
-            datasets: [{ ...prev.datasets[0], data: newData }],
-          };
-        });
+        setChartLabels((prev) => [...prev.slice(1), timeLabel]);
+        setChartPoints((prev) => [...prev.slice(1), actualQps]);
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    } catch {}
+  }, []);
 
   const fetchAttackMode = async () => {
     try {
@@ -317,8 +283,8 @@ export default function EnterpriseAdminDashboard() {
         showToast(
           nextState
             ? lang === "id"
-              ? "🛡️ Mode Under Attack DIAKTIFKAN! PoW Challenge disebarkan secara global."
-              : "🛡️ Under Attack Mode ACTIVATED! PoW Challenge issued globally."
+              ? "🛡️ Mode Under Attack DIAKTIFKAN!"
+              : "🛡️ Under Attack Mode ACTIVATED!"
             : lang === "id"
             ? "Mode Under Attack dinonaktifkan."
             : "Under Attack Mode deactivated."
@@ -336,9 +302,7 @@ export default function EnterpriseAdminDashboard() {
       if (json.status === "success") {
         setLiveLogs(json.logs || []);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch {}
   };
 
   const fetchHealth = async () => {
@@ -346,9 +310,7 @@ export default function EnterpriseAdminDashboard() {
       const res = await fetch("/api/health", { cache: "no-store" });
       const data = await res.json();
       setHealth(data);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch {}
   };
 
   const fetchUsers = async () => {
@@ -371,7 +333,7 @@ export default function EnterpriseAdminDashboard() {
     } catch {}
   };
 
-  const fetchNavData = async () => {
+  const fetchNavData = useCallback(async () => {
     try {
       if (currentNav === "overview" || currentNav === "bans") {
         const res = await fetch("/api/bans");
@@ -402,28 +364,25 @@ export default function EnterpriseAdminDashboard() {
       if (currentNav === "profile") {
         fetchProfile();
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    } catch {}
+  }, [currentNav]);
 
   useEffect(() => {
     checkAuth();
     fetchStats();
-    fetchHealth();
     fetchAttackMode();
     fetchNavData();
 
+    // 3s Debounced Polling for smoother main thread
     const interval = setInterval(() => {
       fetchStats();
-      fetchHealth();
       if (currentNav === "overview" || currentNav === "logs" || currentNav === "analytics") {
         fetchLogs();
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [currentNav]);
+  }, [currentNav, fetchStats, fetchNavData]);
 
   // Actions
   const handleLogout = async () => {
@@ -694,40 +653,19 @@ export default function EnterpriseAdminDashboard() {
   const filteredBans = bans.filter((b) => b.ip.toLowerCase().includes(searchFilter.toLowerCase()));
 
   // Analytics Chart Data
-  const threatVectorChartData = {
+  const threatVectorData = {
     labels: [t.vectorBot, t.vectorWaf, t.vectorRate, t.vectorGeo],
-    datasets: [
-      {
-        data: [
-          Math.max(stats.threats_breakdown?.bad_bot || 0, 14),
-          8,
-          Math.max(stats.threats_breakdown?.rate_limited || 0, 22),
-          Math.max(stats.threats_breakdown?.geo_blocked || 0, 6),
-        ],
-        backgroundColor: [
-          "rgba(56, 189, 248, 0.8)",
-          "rgba(56, 189, 248, 0.55)",
-          "rgba(56, 189, 248, 0.35)",
-          "rgba(56, 189, 248, 0.18)",
-        ],
-        borderColor: "#080b11",
-        borderWidth: 2,
-      },
+    data: [
+      Math.max(stats.threats_breakdown?.bad_bot || 0, 14),
+      8,
+      Math.max(stats.threats_breakdown?.rate_limited || 0, 22),
+      Math.max(stats.threats_breakdown?.geo_blocked || 0, 6),
     ],
   };
 
-  const topCountriesChartData = {
+  const topCountriesData = {
     labels: ["CN", "RU", "US", "BR", "KP", "ID", "DE", "VN"],
-    datasets: [
-      {
-        label: "Blocked Attack Volume",
-        data: [142, 98, 64, 45, 38, 29, 18, 12],
-        backgroundColor: "rgba(56, 189, 248, 0.4)",
-        borderColor: "#38bdf8",
-        borderWidth: 1,
-        borderRadius: 6,
-      },
-    ],
+    data: [142, 98, 64, 45, 38, 29, 18, 12],
   };
 
   if (isAuthChecking || !isAuthenticated) {
@@ -1085,7 +1023,10 @@ export default function EnterpriseAdminDashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowHealthModal(true)}
+              onClick={() => {
+                fetchHealth();
+                setShowHealthModal(true);
+              }}
               className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
             >
               <span className="relative flex h-2 w-2">
@@ -1196,27 +1137,11 @@ export default function EnterpriseAdminDashboard() {
                     </Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-56 w-full pt-2">
-                      <Line
-                        data={chartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: { legend: { display: false } },
-                          scales: {
-                            x: {
-                              grid: { color: "rgba(56, 189, 248, 0.04)" },
-                              ticks: { color: "#71717a", font: { size: 10 } },
-                            },
-                            y: {
-                              grid: { color: "rgba(56, 189, 248, 0.04)" },
-                              ticks: { color: "#71717a", font: { size: 10 } },
-                              beginAtZero: true,
-                            },
-                          },
-                        }}
-                      />
-                    </div>
+                    <TelemetryChart
+                      labels={chartLabels}
+                      dataPoints={chartPoints}
+                      label={t.chartReqSec}
+                    />
                   </CardContent>
                 </Card>
 
@@ -1275,21 +1200,7 @@ export default function EnterpriseAdminDashboard() {
                     <CardDescription className="text-[11px]">{t.threatBreakdownDesc}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center p-6">
-                    <div className="h-56 w-56">
-                      <Doughnut
-                        data={threatVectorChartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: {
-                              position: "bottom",
-                              labels: { color: "#94a3b8", font: { size: 10 } },
-                            },
-                          },
-                        }}
-                      />
-                    </div>
+                    <ThreatVectorChart vectorData={threatVectorData} />
                   </CardContent>
                 </Card>
 
@@ -1302,27 +1213,7 @@ export default function EnterpriseAdminDashboard() {
                     <CardDescription className="text-[11px]">{t.topCountriesDesc}</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
-                    <div className="h-56 w-full">
-                      <Bar
-                        data={topCountriesChartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: { legend: { display: false } },
-                          scales: {
-                            x: {
-                              grid: { color: "rgba(56, 189, 248, 0.04)" },
-                              ticks: { color: "#71717a", font: { size: 10 } },
-                            },
-                            y: {
-                              grid: { color: "rgba(56, 189, 248, 0.04)" },
-                              ticks: { color: "#71717a", font: { size: 10 } },
-                              beginAtZero: true,
-                            },
-                          },
-                        }}
-                      />
-                    </div>
+                    <TopCountriesChart countryData={topCountriesData} />
                   </CardContent>
                 </Card>
               </div>
