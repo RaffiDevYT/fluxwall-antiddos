@@ -61,6 +61,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { translations, Language } from "@/lib/i18n";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 // Async Lazy-Loaded Visual Modules with Zero Main-Thread Blocking
 const TelemetryChart = dynamic(() => import("@/components/charts/telemetry-chart"), {
@@ -257,6 +258,38 @@ export default function EnterpriseAdminDashboard() {
   const [lbAlgorithm, setLbAlgorithm] = useState("round_robin");
   const [sslDomains, setSslDomains] = useState<SslDomain[]>([]);
 
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: "danger" | "warning" | "primary";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const openConfirm = (opts: {
+    title?: string;
+    message?: string;
+    variant?: "danger" | "warning" | "primary";
+    onConfirm: () => void;
+  }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: opts.title || t.confirmTitle,
+      message: opts.message || t.confirmMsgDefault,
+      variant: opts.variant || "warning",
+      onConfirm: () => {
+        opts.onConfirm();
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
   // Simulator State
   const [simVector, setSimVector] = useState("http_flood");
   const [simIntensity, setSimIntensity] = useState("50");
@@ -357,29 +390,36 @@ export default function EnterpriseAdminDashboard() {
     } catch {}
   };
 
-  const toggleUnderAttackMode = async () => {
-    const nextState = !underAttackMode;
-    try {
-      const res = await fetch("/api/toggle-attack-mode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: nextState }),
-      });
-      if (res.ok) {
-        setUnderAttackMode(nextState);
-        showToast(
-          nextState
-            ? lang === "id"
-              ? "🛡️ Mode Under Attack DIAKTIFKAN!"
-              : "🛡️ Under Attack Mode ACTIVATED!"
-            : lang === "id"
-            ? "Mode Under Attack dinonaktifkan."
-            : "Under Attack Mode deactivated."
-        );
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const toggleUnderAttackMode = () => {
+    openConfirm({
+      title: t.confirmTitle,
+      message: t.confirmAttackMode,
+      variant: "warning",
+      onConfirm: async () => {
+        const nextState = !underAttackMode;
+        try {
+          const res = await fetch("/api/toggle-attack-mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: nextState }),
+          });
+          if (res.ok) {
+            setUnderAttackMode(nextState);
+            showToast(
+              nextState
+                ? lang === "id"
+                  ? "🛡️ Mode Under Attack DIAKTIFKAN!"
+                  : "🛡️ Under Attack Mode ACTIVATED!"
+                : lang === "id"
+                ? "Mode Under Attack dinonaktifkan."
+                : "Under Attack Mode deactivated."
+            );
+          }
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
   const fetchLogs = async () => {
@@ -511,35 +551,49 @@ export default function EnterpriseAdminDashboard() {
   }, [currentNav, fetchStats, fetchNavData]);
 
   // Actions
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+  const handleLogout = () => {
+    openConfirm({
+      title: t.logout,
+      message: t.confirmLogout,
+      variant: "danger",
+      onConfirm: async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        window.location.href = "/login";
+      },
+    });
   };
 
-  const handleLaunchSimulation = async () => {
-    setSimRunning(true);
-    try {
-      const res = await fetch("/api/simulator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vector: simVector, intensity: simIntensity }),
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setSimReport(data.report);
-        showToast(
-          lang === "id"
-            ? `⚡ Simulasi selesai! ${data.report.packets_blocked} paket berhasil ditepis (${data.report.deflection_rate})`
-            : `⚡ Simulation complete! ${data.report.packets_blocked} packets deflected (${data.report.deflection_rate})`
-        );
-        fetchStats();
-        fetchLogs();
-      }
-    } catch (err: any) {
-      showToast(`Simulation Error: ${err.message}`);
-    } finally {
-      setSimRunning(false);
-    }
+  const handleLaunchSimulation = () => {
+    openConfirm({
+      title: t.simTitle,
+      message: `${lang === "id" ? "Luncurkan simulasi serangan" : "Launch attack simulation for vector"}: ${simVector} (${simIntensity} requests)?`,
+      variant: "primary",
+      onConfirm: async () => {
+        setSimRunning(true);
+        try {
+          const res = await fetch("/api/simulator", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vector: simVector, intensity: simIntensity }),
+          });
+          const data = await res.json();
+          if (data.status === "success") {
+            setSimReport(data.report);
+            showToast(
+              lang === "id"
+                ? `⚡ Simulasi selesai! ${data.report.packets_blocked} paket berhasil ditepis (${data.report.deflection_rate})`
+                : `⚡ Simulation complete! ${data.report.packets_blocked} packets deflected (${data.report.deflection_rate})`
+            );
+            fetchStats();
+            fetchLogs();
+          }
+        } catch (err: any) {
+          showToast(`Simulation Error: ${err.message}`);
+        } finally {
+          setSimRunning(false);
+        }
+      },
+    });
   };
 
   const handleCreateCustomRule = async (e: React.FormEvent) => {
@@ -570,14 +624,21 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleDeleteCustomRule = async (id: string) => {
-    try {
-      await fetch(`/api/waf/custom-rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      showToast("WAF Rule deleted");
-      fetchCustomWafRules();
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
-    }
+  const handleDeleteCustomRule = (id: string) => {
+    openConfirm({
+      title: t.customWafTitle,
+      message: t.confirmDeleteRule,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/waf/custom-rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+          showToast("WAF Rule deleted");
+          fetchCustomWafRules();
+        } catch (err: any) {
+          showToast(`Error: ${err.message}`);
+        }
+      },
+    });
   };
 
   const handleAddUpstream = async (e: React.FormEvent) => {
@@ -605,14 +666,21 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleDeleteUpstream = async (id: string) => {
-    try {
-      await fetch(`/api/upstreams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      showToast("Upstream removed");
-      fetchUpstreams();
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
-    }
+  const handleDeleteUpstream = (id: string) => {
+    openConfirm({
+      title: t.upstreamTitle,
+      message: t.confirmDeleteUpstream,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/upstreams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+          showToast("Upstream removed");
+          fetchUpstreams();
+        } catch (err: any) {
+          showToast(`Error: ${err.message}`);
+        }
+      },
+    });
   };
 
   const handleAddDomain = async (e: React.FormEvent) => {
@@ -638,63 +706,91 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleToggleSslFlag = async (id: string, flag: "force_https" | "hsts" | "tls13_strict") => {
-    try {
-      await fetch("/api/ssl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "toggle_flag", id, flag }),
-      });
-      showToast("Security flag updated!");
-      fetchSslDomains();
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
-    }
+  const handleToggleSslFlag = (id: string, flag: "force_https" | "hsts" | "tls13_strict") => {
+    openConfirm({
+      title: t.sslTitle,
+      message: `${lang === "id" ? "Ubah pengaturan flag keamanan" : "Toggle SSL security flag"}: ${flag}?`,
+      variant: "warning",
+      onConfirm: async () => {
+        try {
+          await fetch("/api/ssl", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "toggle_flag", id, flag }),
+          });
+          showToast("Security flag updated!");
+          fetchSslDomains();
+        } catch (err: any) {
+          showToast(`Error: ${err.message}`);
+        }
+      },
+    });
   };
 
-  const handleDeleteDomain = async (id: string) => {
-    try {
-      await fetch(`/api/ssl?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      showToast("Domain removed");
-      fetchSslDomains();
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
-    }
+  const handleDeleteDomain = (id: string) => {
+    openConfirm({
+      title: t.sslTitle,
+      message: t.confirmDeleteDomain,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/ssl?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+          showToast("Domain removed");
+          fetchSslDomains();
+        } catch (err: any) {
+          showToast(`Error: ${err.message}`);
+        }
+      },
+    });
   };
 
-  const handleUnban = async (ip: string) => {
-    try {
-      const res = await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`IP ${ip} unbanned!`);
-        fetchNavData();
-        fetchStats();
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleUnban = (ip: string) => {
+    openConfirm({
+      title: t.navBans,
+      message: `${t.confirmUnban} (${ip})`,
+      variant: "warning",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+          const json = await res.json();
+          if (json.status === "success") {
+            showToast(`IP ${ip} unbanned!`);
+            fetchNavData();
+            fetchStats();
+          }
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
-  const handleManualBan = async (e: React.FormEvent) => {
+  const handleManualBan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!banIp) return;
-    try {
-      const res = await fetch("/api/bans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: banIp, duration_sec: parseInt(banDuration, 10) }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`IP ${banIp} quarantined for ${banDuration}s`);
-        setBanIp("");
-        fetchNavData();
-        fetchStats();
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+    openConfirm({
+      title: t.quickBanTitle,
+      message: `${t.confirmBan} (${banIp}) for ${banDuration}s?`,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/bans", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ip: banIp, duration_sec: parseInt(banDuration, 10) }),
+          });
+          const json = await res.json();
+          if (json.status === "success") {
+            showToast(`IP ${banIp} quarantined for ${banDuration}s`);
+            setBanIp("");
+            fetchNavData();
+            fetchStats();
+          }
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
   const handleExecuteLookup = async (overrideIp?: string) => {
@@ -739,36 +835,50 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (username: string) => {
-    try {
-      const res = await fetch(`/api/users?username=${encodeURIComponent(username)}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`User ${username} deleted`);
-        fetchUsers();
-      } else {
-        showToast(json.error || "Failed to delete user");
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleDeleteUser = (username: string) => {
+    openConfirm({
+      title: t.usersTitle,
+      message: `${t.confirmDeleteUser} (${username})?`,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users?username=${encodeURIComponent(username)}`, { method: "DELETE" });
+          const json = await res.json();
+          if (json.status === "success") {
+            showToast(`User ${username} deleted`);
+            fetchUsers();
+          } else {
+            showToast(json.error || "Failed to delete user");
+          }
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
-  const handleRegenerateApiKey = async () => {
-    try {
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "regenerate_key" }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        setProfileApiKey(json.api_key);
-        showToast("REST API Key regenerated!");
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleRegenerateApiKey = () => {
+    openConfirm({
+      title: t.apiKeyTitle,
+      message: t.confirmRegenKey,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "regenerate_key" }),
+          });
+          const json = await res.json();
+          if (json.status === "success") {
+            setProfileApiKey(json.api_key);
+            showToast("REST API Key regenerated!");
+          }
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -817,15 +927,22 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleRemoveWhitelist = async (ip: string) => {
-    try {
-      await fetch(`/api/whitelist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
-      showToast(`IP ${ip} removed from whitelist`);
-      fetchNavData();
-      fetchStats();
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleRemoveWhitelist = (ip: string) => {
+    openConfirm({
+      title: t.navWhitelist,
+      message: `${lang === "id" ? "Hapus IP dari whitelist" : "Remove IP from whitelist"}: ${ip}?`,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/whitelist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+          showToast(`IP ${ip} removed from whitelist`);
+          fetchNavData();
+          fetchStats();
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
   const handleAddBlacklist = async (e: React.FormEvent) => {
@@ -849,15 +966,22 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleRemoveBlacklist = async (ip: string) => {
-    try {
-      await fetch(`/api/blacklist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
-      showToast(`IP ${ip} removed from blacklist`);
-      fetchNavData();
-      fetchStats();
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleRemoveBlacklist = (ip: string) => {
+    openConfirm({
+      title: t.navBlacklist,
+      message: `${lang === "id" ? "Hapus IP dari blacklist" : "Remove IP from blacklist"}: ${ip}?`,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/blacklist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+          showToast(`IP ${ip} removed from blacklist`);
+          fetchNavData();
+          fetchStats();
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
   const handleAddCountry = async (e: React.FormEvent) => {
@@ -880,32 +1004,46 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
-  const handleRemoveCountry = async (country: string) => {
-    try {
-      await fetch(`/api/geoip?country=${encodeURIComponent(country)}`, { method: "DELETE" });
-      showToast(`Country ${country} unblocked`);
-      fetchNavData();
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleRemoveCountry = (country: string) => {
+    openConfirm({
+      title: t.navGeoip,
+      message: `${lang === "id" ? "Buka blokir negara" : "Unblock country"}: ${country}?`,
+      variant: "warning",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/geoip?country=${encodeURIComponent(country)}`, { method: "DELETE" });
+          showToast(`Country ${country} unblocked`);
+          fetchNavData();
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
-  const handleGatewayAction = async (action: string, label: string) => {
-    try {
-      const res = await fetch("/api/gateway-control", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(json.message || `${label} executed successfully!`);
-        fetchStats();
-        fetchNavData();
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
+  const handleGatewayAction = (action: string, label: string) => {
+    openConfirm({
+      title: t.navMaintenance,
+      message: `${t.confirmMaintAction}: "${label}"?`,
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/gateway-control", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action }),
+          });
+          const json = await res.json();
+          if (json.status === "success") {
+            showToast(json.message || `${label} executed successfully!`);
+            fetchStats();
+            fetchNavData();
+          }
+        } catch (e: any) {
+          showToast(`Error: ${e.message}`);
+        }
+      },
+    });
   };
 
   const exportLogsAsJson = () => {
@@ -1272,6 +1410,18 @@ export default function EnterpriseAdminDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#080b11] text-foreground bg-grid-cyber">
+      {/* Action Confirmation Modal Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmLabel={t.btnConfirm}
+        cancelLabel={t.btnCancel}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
+
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 right-6 z-50 bg-primary/20 border border-primary text-sky-200 px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -1439,7 +1589,7 @@ export default function EnterpriseAdminDashboard() {
               </button>
             </div>
 
-            {/* 1-Click Under Attack Mode Master Switch */}
+            {/* 1-Click Under Attack Mode Master Switch with Confirm */}
             <Button
               size="sm"
               variant={underAttackMode ? "cyber" : "outline"}
@@ -2277,14 +2427,21 @@ export default function EnterpriseAdminDashboard() {
                             size="sm"
                             variant="cyber"
                             aria-label={`Ban IP ${lookupResult.ip}`}
-                            onClick={async () => {
-                              await fetch("/api/bans", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ ip: lookupResult.ip, duration_sec: 900 }),
+                            onClick={() => {
+                              openConfirm({
+                                title: t.quickBanTitle,
+                                message: `${t.confirmBan} (${lookupResult.ip}) for 15m?`,
+                                variant: "danger",
+                                onConfirm: async () => {
+                                  await fetch("/api/bans", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ ip: lookupResult.ip, duration_sec: 900 }),
+                                  });
+                                  showToast(`IP ${lookupResult.ip} banned for 15m!`);
+                                  handleExecuteLookup(lookupResult.ip);
+                                },
                               });
-                              showToast(`IP ${lookupResult.ip} banned for 15m!`);
-                              handleExecuteLookup(lookupResult.ip);
                             }}
                             className="text-xs gap-1.5"
                           >
@@ -2296,14 +2453,21 @@ export default function EnterpriseAdminDashboard() {
                           size="sm"
                           variant="outline"
                           aria-label={`Whitelist IP ${lookupResult.ip}`}
-                          onClick={async () => {
-                            await fetch("/api/whitelist", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ ip: lookupResult.ip }),
+                          onClick={() => {
+                            openConfirm({
+                              title: t.navWhitelist,
+                              message: `${lang === "id" ? "Tambahkan ke whitelist" : "Add to whitelist"}: ${lookupResult.ip}?`,
+                              variant: "primary",
+                              onConfirm: async () => {
+                                await fetch("/api/whitelist", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ ip: lookupResult.ip }),
+                                });
+                                showToast(`IP ${lookupResult.ip} whitelisted!`);
+                                handleExecuteLookup(lookupResult.ip);
+                              },
                             });
-                            showToast(`IP ${lookupResult.ip} whitelisted!`);
-                            handleExecuteLookup(lookupResult.ip);
                           }}
                           className="text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
                         >
@@ -2314,14 +2478,21 @@ export default function EnterpriseAdminDashboard() {
                           size="sm"
                           variant="outline"
                           aria-label={`Blacklist IP ${lookupResult.ip}`}
-                          onClick={async () => {
-                            await fetch("/api/blacklist", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ ip: lookupResult.ip }),
+                          onClick={() => {
+                            openConfirm({
+                              title: t.navBlacklist,
+                              message: `${lang === "id" ? "Blacklist permanen IP" : "Permanently blacklist IP"}: ${lookupResult.ip}?`,
+                              variant: "danger",
+                              onConfirm: async () => {
+                                await fetch("/api/blacklist", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ ip: lookupResult.ip }),
+                                });
+                                showToast(`IP ${lookupResult.ip} added to permanent blacklist!`);
+                                handleExecuteLookup(lookupResult.ip);
+                              },
                             });
-                            showToast(`IP ${lookupResult.ip} added to permanent blacklist!`);
-                            handleExecuteLookup(lookupResult.ip);
                           }}
                           className="text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
                         >
@@ -2886,7 +3057,16 @@ export default function EnterpriseAdminDashboard() {
                   <Button
                     variant="cyber"
                     aria-label="Save Rate Limit policies"
-                    onClick={() => showToast(`Rate Limit policy updated: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})`)}
+                    onClick={() => {
+                      openConfirm({
+                        title: t.rateLimitTitle,
+                        message: `${lang === "id" ? "Simpan kebijakan batas kecepatan" : "Update rate limit policy"}: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})?`,
+                        variant: "warning",
+                        onConfirm: () => {
+                          showToast(`Rate Limit policy updated: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})`);
+                        },
+                      });
+                    }}
                     className="gap-2 text-xs font-bold mt-2"
                   >
                     <Sliders className="w-3.5 h-3.5" /> {t.btnSaveRateLimit}

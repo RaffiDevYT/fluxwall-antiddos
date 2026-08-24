@@ -14,6 +14,22 @@ export const translations = {
     authenticated: "Authenticated",
     adminPortal: "Admin Portal",
 
+    // Confirm Dialog
+    confirmTitle: "Action Confirmation",
+    confirmMsgDefault: "Are you sure you want to execute this action?",
+    confirmAttackMode: "Are you sure you want to toggle Global Under Attack Mode? Untrusted visitors will receive JS Proof-of-Work challenges.",
+    confirmBan: "Are you sure you want to quarantine this IP address in Redis memory?",
+    confirmUnban: "Are you sure you want to unban and restore access for this IP address?",
+    confirmDeleteUser: "Are you sure you want to delete this administrator account?",
+    confirmRegenKey: "Are you sure you want to regenerate your REST API key? Existing integrations will need to update their secret key.",
+    confirmMaintAction: "Are you sure you want to execute this maintenance operation?",
+    confirmDeleteRule: "Are you sure you want to remove this Custom WAF Rule?",
+    confirmDeleteUpstream: "Are you sure you want to remove this Upstream Target?",
+    confirmDeleteDomain: "Are you sure you want to remove this Domain configuration?",
+    confirmLogout: "Are you sure you want to log out of the admin session?",
+    btnConfirm: "Confirm & Execute",
+    btnCancel: "Cancel",
+
     // Alerts
     underAttackAlertTitle: "Under Attack Mode is Currently Enforced",
     underAttackAlertDesc: "Global JavaScript Proof-of-Work (PoW) challenges are active for all untrusted clients. Botnet traffic is automatically neutralized.",
@@ -302,6 +318,22 @@ export const translations = {
     logout: "Keluar",
     authenticated: "Terotentikasi",
     adminPortal: "Portal Admin",
+
+    // Confirm Dialog
+    confirmTitle: "Konfirmasi Tindakan",
+    confirmMsgDefault: "Apakah Anda yakin ingin memproses tindakan ini?",
+    confirmAttackMode: "Apakah Anda yakin ingin mengubah status Mode 'Under Attack' global? Semua pengunjung tidak terpercaya akan diberikan tantangan Proof-of-Work.",
+    confirmBan: "Apakah Anda yakin ingin mengkarantina alamat IP ini di memori Redis?",
+    confirmUnban: "Apakah Anda yakin ingin membuka blokir dan memulihkan akses alamat IP ini?",
+    confirmDeleteUser: "Apakah Anda yakin ingin menghapus akun administrator ini?",
+    confirmRegenKey: "Apakah Anda yakin ingin meregenerasi kunci REST API? Integrasi yang sudah ada harus memperbarui kuncinya.",
+    confirmMaintAction: "Apakah Anda yakin ingin menjalankan operasi pemeliharaan ini?",
+    confirmDeleteRule: "Apakah Anda yakin ingin menghapus Aturan WAF Kustom ini?",
+    confirmDeleteUpstream: "Apakah Anda yakin ingin menghapus Target Upstream ini?",
+    confirmDeleteDomain: "Apakah Anda yakin ingin menghapus konfigurasi Domain ini?",
+    confirmLogout: "Apakah Anda yakin ingin keluar dari sesi admin?",
+    btnConfirm: "Ya, Lanjutkan",
+    btnCancel: "Batal",
 
     // Alerts
     underAttackAlertTitle: "Mode 'Under Attack' Sedang Diberlakukan",
