@@ -6,6 +6,16 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: "/admin",
   },
+  async redirects() {
+    return [
+      {
+        source: "/",
+        basePath: false,
+        destination: "/admin",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
