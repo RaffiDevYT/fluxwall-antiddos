@@ -7,6 +7,8 @@
 [![OpenResty](https://img.shields.io/badge/OPENRESTY-1.25.3-00758F?style=for-the-badge&logo=nginx&logoColor=white)](https://openresty.org/)
 [![Nginx](https://img.shields.io/badge/NGINX-CORE-009639?style=for-the-badge&logo=nginx&logoColor=white)](https://nginx.org/)
 [![LuaJIT](https://img.shields.io/badge/LUAJIT-2.1-000080?style=for-the-badge&logo=lua&logoColor=white)](https://luajit.org/)
+[![Next.js](https://img.shields.io/badge/NEXT.JS-15_APP_ROUTER-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![NestJS Terminus](https://img.shields.io/badge/TERMINUS-HEALTHCHECKS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://docs.nestjs.com/recipes/terminus)
 [![Redis](https://img.shields.io/badge/REDIS-7_ALPINE-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/DOCKER-READY-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Prometheus](https://img.shields.io/badge/PROMETHEUS-METRICS-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
@@ -46,7 +48,8 @@ By integrating **OpenResty (Nginx + LuaJIT)** with an asynchronous **Redis 7** b
 | 🤖 **Bad Bot & Scanner Filter** | Drops vulnerability scanners (*sqlmap, nikto, dirbuster, masscan, nmap, exploit probes*) instantly. |
 | 💉 **Lightweight WAF Sanitizer** | Fast regex filter for SQL Injection (`UNION SELECT`), XSS (`<script>`), RCE (`eval()`), and Path Traversal (`/etc/passwd`). |
 | 🌊 **Adaptive Surge Mode** | Automatically detects global traffic spikes and tightens per-IP limits dynamically until traffic normalizes. |
-| 📊 **Web Admin Dashboard** | Modern dark-mode SPA featuring real-time Chart.js QPS streaming and 1-click ban/unban controls. |
+| 📊 **Next.js Web Admin Dashboard** | Full-Stack Next.js 15 App Router SPA with Chart.js telemetry, 1-click ban controls & `@nestjs/terminus` healthcheck indicators. |
+| 🏥 **Terminus Healthchecks (`/api/health`)** | Standardized health indicator JSON evaluating Redis ping, memory heap, process RSS, and gateway socket status. |
 | 🔌 **Protected REST API** | Programmatic endpoints (`/api/admin/*`) for SIEM, webhooks, and automated IP list management. |
 | 📈 **Prometheus Metrics** | Native `/metrics` scrape endpoint for Prometheus & Grafana monitoring. |
 | ⏳ **Sliding Window Rate Limit** | Atomic Redis counters with burst allowances and HTTP method token weights (POST/PUT counts 2x). |
