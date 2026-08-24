@@ -17,7 +17,6 @@ services:
     volumes:
       - ./conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - ./lua:/usr/local/openresty/nginx/lua:ro
-      - ./admin:/usr/local/openresty/nginx/admin:ro
     depends_on:
       - redis
       - backend
