@@ -1,239 +1,78 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  ShieldAlert,
-  ShieldCheck,
-  Zap,
-  Activity,
-  Server,
-  Lock,
-  Unlock,
-  Plus,
-  Trash2,
-  Search,
-  CheckCircle2,
-  Radio,
-  HardDrive,
-  Cpu,
-  Network,
-  Ban,
-  RadioTower,
-  Globe,
-  Download,
-  LogOut,
-  RefreshCw,
-  Power,
-  RotateCcw,
-  Sliders,
-  FileCode2,
-  ExternalLink,
-  Flame,
-  LayoutDashboard,
   Shield,
-  Gauge,
-  Settings,
-  ChevronRight,
-  ChevronDown,
-  UserCheck,
-  PieChart,
-  Fingerprint,
-  Users,
-  Wrench,
-  User,
-  Key,
-  Copy,
-  AlertOctagon,
-  Eye,
-  EyeOff,
+  Zap,
+  Power,
+  Activity,
   Menu,
   X,
-  Crosshair,
-  ServerCrash,
-  Send,
-  Layers,
-  MapPin,
-  Terminal,
-  Bug,
+  Languages,
+  LogOut,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { translations, Language } from "@/lib/i18n";
 import ConfirmDialog from "@/components/confirm-dialog";
+import { translations, Language } from "@/lib/i18n";
 
-// Async Lazy-Loaded Visual Modules with Zero Main-Thread Blocking
-const TelemetryChart = dynamic(() => import("@/components/charts/telemetry-chart"), {
+// Modular Views
+import SidebarNav, { NavSection } from "@/components/views/sidebar-nav";
+import OverviewView from "@/components/views/overview-view";
+import AnalyticsView from "@/components/views/analytics-view";
+import SimulatorView from "@/components/views/simulator-view";
+import LogsView from "@/components/views/logs-view";
+import IpLookupView from "@/components/views/ip-lookup-view";
+import BansView from "@/components/views/bans-view";
+import WhitelistView from "@/components/views/whitelist-view";
+import BlacklistView from "@/components/views/blacklist-view";
+import GeoIpView from "@/components/views/geoip-view";
+import CustomWafView from "@/components/views/custom-waf-view";
+import WafSignaturesView from "@/components/views/waf-signatures-view";
+import RateLimitsView from "@/components/views/rate-limits-view";
+import UpstreamsView from "@/components/views/upstreams-view";
+import SslView from "@/components/views/ssl-view";
+import UsersView from "@/components/views/users-view";
+import ProfileView from "@/components/views/profile-view";
+import MaintenanceView from "@/components/views/maintenance-view";
+import DiagnosticsModal from "@/components/views/diagnostics-modal";
+
+// Dynamic Views for Heavy Graphics / Live SSE
+const ThreatMap = dynamic(() => import("@/components/charts/cyber-threat-map"), {
   ssr: false,
   loading: () => (
-    <div className="h-56 w-full flex items-center justify-center bg-secondary/10 rounded-xl border border-primary/10">
-      <span className="text-xs text-muted-foreground font-mono">Loading telemetry canvas...</span>
+    <div className="h-96 w-full flex items-center justify-center bg-secondary/10 rounded-xl border border-primary/20 animate-pulse">
+      <span className="text-xs text-muted-foreground font-mono">Loading Threat Map Coordinates...</span>
     </div>
   ),
 });
 
-const ThreatVectorChart = dynamic(
-  () => import("@/components/charts/analytics-charts").then((m) => m.ThreatVectorChart),
-  {
-    ssr: false,
-    loading: () => <div className="h-56 w-56 bg-secondary/20 rounded-full animate-pulse mx-auto" />,
-  }
-);
-
-const TopCountriesChart = dynamic(
-  () => import("@/components/charts/analytics-charts").then((m) => m.TopCountriesChart),
-  {
-    ssr: false,
-    loading: () => <div className="h-56 w-full bg-secondary/20 rounded-xl animate-pulse" />,
-  }
-);
-
-const CyberThreatMap = dynamic(() => import("@/components/charts/cyber-threat-map"), {
+const PacketStream = dynamic(() => import("@/components/packet-inspector"), {
   ssr: false,
   loading: () => (
-    <div className="h-80 w-full flex items-center justify-center bg-secondary/10 rounded-2xl border border-primary/20 animate-pulse">
-      <span className="text-xs text-muted-foreground font-mono">Initializing Cyber Threat Map Canvas...</span>
+    <div className="h-96 w-full flex items-center justify-center bg-secondary/10 rounded-xl border border-primary/20 animate-pulse">
+      <span className="text-xs text-muted-foreground font-mono">Connecting Real-Time Kernel Packet Stream...</span>
     </div>
   ),
 });
 
-const IncidentForensics = dynamic(() => import("@/components/incident-forensics"), { ssr: false, loading: () => <div className="h-80 w-full flex items-center justify-center bg-secondary/10 rounded-2xl border border-primary/20 animate-pulse"><span className="text-xs text-muted-foreground font-mono">Loading Incident Forensics SOC Canvas...</span></div> });
-
-const PacketInspector = dynamic(() => import("@/components/packet-inspector"), {
+const IncidentForensics = dynamic(() => import("@/components/incident-forensics"), {
   ssr: false,
   loading: () => (
-    <div className="h-80 w-full flex items-center justify-center bg-secondary/10 rounded-2xl border border-primary/20 animate-pulse">
-      <span className="text-xs text-muted-foreground font-mono">Connecting to Live Packet Stream...</span>
+    <div className="h-96 w-full flex items-center justify-center bg-secondary/10 rounded-xl border border-primary/20 animate-pulse">
+      <span className="text-xs text-muted-foreground font-mono">Initializing SOC Forensics Engine...</span>
     </div>
   ),
 });
-
-interface HealthData {
-  status: "ok" | "error";
-  timestamp: string;
-  total_check_time_ms: number;
-  info: {
-    redis?: { status: string; latency_ms?: number };
-    gateway?: { status: string; response_time_ms?: number };
-    memory_heap?: { status: string; used_mb?: number; allocated_mb?: number };
-    memory_rss?: { status: string; used_mb?: number };
-  };
-}
-
-interface BanItem {
-  ip: string;
-  remaining_ttl: number;
-  reason: string;
-}
-
-interface LogEvent {
-  id: string;
-  time: number;
-  time_formatted?: string;
-  client_ip: string;
-  event: string;
-  reason?: string;
-  uri?: string;
-}
-
-interface IpLookupResult {
-  ip: string;
-  geo: {
-    country: string;
-    city?: string;
-    region?: string;
-    org?: string;
-    is_datacenter: boolean;
-  };
-  defense_status: {
-    is_banned: boolean;
-    ban_ttl_seconds: number;
-    is_whitelisted: boolean;
-    is_blacklisted: boolean;
-    strike_violations: number;
-  };
-}
-
-interface AdminUserItem {
-  id: string;
-  username: string;
-  role: "super_admin" | "security_analyst" | "auditor";
-  created_at: string;
-}
-
-interface CustomWafRule {
-  id: string;
-  name: string;
-  field: "uri" | "user_agent" | "header" | "query";
-  operator: "contains" | "equals" | "regex";
-  value: string;
-  action: "DROP" | "CHALLENGE" | "LOG";
-  enabled: boolean;
-  created_at: string;
-}
-
-interface UpstreamServer {
-  id: string;
-  host: string;
-  port: number;
-  protocol: "http" | "https";
-  weight: number;
-  status: "healthy" | "degraded" | "down";
-  latency_ms: number;
-  last_checked: string;
-}
-
-interface SslDomain {
-  id: string;
-  domain: string;
-  issuer: "letsencrypt" | "custom";
-  force_https: boolean;
-  hsts: boolean;
-  tls13_strict: boolean;
-  expires_at: string;
-  days_remaining: number;
-  status: "active" | "pending";
-}
-
-interface SimulationReport {
-  vector: string;
-  total_packets: number;
-  packets_blocked: number;
-  packets_allowed: number;
-  deflection_rate: string;
-  elapsed_time_ms: number;
-  avg_packet_latency_ms: string;
-  mitigation_reason: string;
-  timestamp: string;
-}
-
-type NavSection =
-  | "overview"
-  | "threat_map"
-  | "packet_stream"
-  | "forensics"
-  | "analytics"
-  | "simulator"
-  | "bans"
-  | "whitelist"
-  | "blacklist"
-  | "geoip"
-  | "lookup"
-  | "waf"
-  | "custom_waf"
-  | "ratelimits"
-  | "upstreams"
-  | "ssl"
-  | "users"
-  | "profile"
-  | "logs"
-  | "maintenance";
 
 export default function EnterpriseAdminDashboard() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  // Localization & State
   const [lang, setLang] = useState<Language>("id");
   const t = translations[lang];
 
@@ -260,3103 +99,830 @@ export default function EnterpriseAdminDashboard() {
     setCollapsedSections((prev) => ({ ...prev, [sec]: !prev[sec] }));
   };
 
-  const [underAttackMode, setUnderAttackMode] = useState(false);
-  const [health, setHealth] = useState<HealthData | null>(null);
-  const [showHealthModal, setShowHealthModal] = useState(false);
-  const [bans, setBans] = useState<BanItem[]>([]);
+  // Data lists
+  const [liveLogs, setLiveLogs] = useState<any[]>([]);
+  const [bans, setBans] = useState<any[]>([]);
   const [whitelist, setWhitelist] = useState<string[]>([]);
   const [blacklist, setBlacklist] = useState<string[]>([]);
   const [blockedCountries, setBlockedCountries] = useState<string[]>([]);
-  const [liveLogs, setLiveLogs] = useState<LogEvent[]>([]);
-  const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>([]);
-  const [customWafRules, setCustomWafRules] = useState<CustomWafRule[]>([]);
-  const [upstreams, setUpstreams] = useState<UpstreamServer[]>([]);
-  const [lbAlgorithm, setLbAlgorithm] = useState("round_robin");
-  const [sslDomains, setSslDomains] = useState<SslDomain[]>([]);
+  const [customWafRules, setCustomWafRules] = useState<any[]>([]);
+  const [upstreams, setUpstreams] = useState<any[]>([]);
+  const [sslDomains, setSslDomains] = useState<any[]>([]);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [profileData, setProfileData] = useState<any>(null);
 
-  // Confirmation Dialog State
+  // IP Lookup & Diagnostics
+  const [lookupTargetIp, setLookupTargetIp] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<any>(null);
+  const [diagModalOpen, setDiagModalOpen] = useState(false);
+  const [health, setHealth] = useState<any>(null);
+
+  // Simulator
+  const [simRunning, setSimRunning] = useState(false);
+  const [simVector, setSimVector] = useState("canary_trap");
+  const [simIntensity, setSimIntensity] = useState(3);
+  const [simPackets, setSimPackets] = useState<any[]>([]);
+
+  // Feedback Toast & Confirm Dialog
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
     message: string;
-    variant?: "danger" | "warning" | "primary";
+    variant: "danger" | "primary" | "warning";
+    confirmLabel: string;
     onConfirm: () => void;
   }>({
     isOpen: false,
     title: "",
     message: "",
+    variant: "danger",
+    confirmLabel: "Confirm",
     onConfirm: () => {},
   });
 
-  const openConfirm = (opts: {
-    title?: string;
-    message?: string;
-    variant?: "danger" | "warning" | "primary";
-    onConfirm: () => void;
-  }) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: opts.title || t.confirmTitle,
-      message: opts.message || t.confirmMsgDefault,
-      variant: opts.variant || "warning",
-      onConfirm: () => {
-        opts.onConfirm();
-        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-      },
-    });
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
   };
 
-  // Simulator State
-  const [simVector, setSimVector] = useState("canary_trap");
-  const [simIntensity, setSimIntensity] = useState("50");
-  const [simRunning, setSimRunning] = useState(false);
-  const [simReport, setSimReport] = useState<SimulationReport | null>(null);
+  // Polling Fetchers
+  const refreshTelemetry = useCallback(async () => {
+    try {
+      const [resStats, resLogs, resHealth] = await Promise.all([
+        fetch("/api/stats"),
+        fetch("/api/logs?limit=20"),
+        fetch("/api/health"),
+      ]);
 
-  // Forms
-  const [searchFilter, setSearchFilter] = useState("");
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [banIp, setBanIp] = useState("");
-  const [banDuration, setBanDuration] = useState("900");
-  const [whitelistIp, setWhitelistIp] = useState("");
-  const [blacklistIp, setBlacklistIp] = useState("");
-  const [newCountryCode, setNewCountryCode] = useState("");
-  const [rateLimitGeneral, setRateLimitGeneral] = useState("20");
-  const [rateLimitBurst, setRateLimitBurst] = useState("50");
+      if (resStats.ok) {
+        const data = await resStats.json();
+        setStats({
+          live_qps: data.live_qps || 0,
+          active_bans: data.active_bans || 0,
+          whitelist_count: data.whitelist_count || 0,
+          blacklist_count: data.blacklist_count || 0,
+          threats_total: data.threats_total || 0,
+          threats_breakdown: data.threats_breakdown || { bad_bot: 0, rate_limited: 0, geo_blocked: 0 },
+          surge_mode: Boolean(data.surge_mode),
+        });
+      }
 
-  // Custom WAF Form
-  const [ruleName, setRuleName] = useState("");
-  const [ruleField, setRuleField] = useState<"uri" | "user_agent" | "header" | "query">("uri");
-  const [ruleOp, setRuleOp] = useState<"contains" | "equals" | "regex">("contains");
-  const [ruleVal, setRuleVal] = useState("");
-  const [ruleAction, setRuleAction] = useState<"DROP" | "CHALLENGE" | "LOG">("DROP");
+      if (resLogs.ok) {
+        const data = await resLogs.json();
+        setLiveLogs(data.logs || []);
+      }
 
-  // Upstream Form
-  const [newUpsHost, setNewUpsHost] = useState("");
-  const [newUpsPort, setNewUpsPort] = useState("80");
-  const [newUpsProtocol, setNewUpsProtocol] = useState<"http" | "https">("http");
-  const [newUpsWeight, setNewUpsWeight] = useState("1");
-
-  // SSL Form
-  const [newDomain, setNewDomain] = useState("");
-  const [newIssuer, setNewIssuer] = useState<"letsencrypt" | "custom">("letsencrypt");
-
-  // User Management State
-  const [newUsername, setNewUsername] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
-  const [newUserRole, setNewUserRole] = useState<"super_admin" | "security_analyst" | "auditor">("security_analyst");
-
-  // Profile & Password State
-  const [profileApiKey, setProfileApiKey] = useState("fw_live_981a03f49b12048d89");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  // IP Lookup State
-  const [lookupTargetIp, setLookupTargetIp] = useState("");
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupResult, setLookupResult] = useState<IpLookupResult | null>(null);
-
-  // Lightweight Telemetry Data Points
-  const [chartLabels, setChartLabels] = useState<string[]>(() => [
-    "00:00", "00:01", "00:02", "00:03", "00:04", "00:05", "00:06", "00:07", "00:08", "00:09",
-    "00:10", "00:11", "00:12", "00:13", "00:14", "00:15", "00:16", "00:17", "00:18", "00:19"
-  ]);
-  const [chartPoints, setChartPoints] = useState<number[]>(() => Array(20).fill(0));
-
-  // Load language preference
-  useEffect(() => {
-    const savedLang = localStorage.getItem("fluxwall_lang") as Language;
-    if (savedLang === "en" || savedLang === "id") {
-      setLang(savedLang);
+      if (resHealth.ok) {
+        const data = await resHealth.json();
+        setHealth(data);
+      }
+    } catch {
+      // Ignore network hiccup
     }
   }, []);
 
-  const changeLanguage = (newLang: Language) => {
-    setLang(newLang);
-    localStorage.setItem("fluxwall_lang", newLang);
-    showToast(newLang === "id" ? "Bahasa diubah ke Bahasa Indonesia" : "Language switched to English");
-  };
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  // Unified Stats Polling
-  const fetchStats = useCallback(async () => {
+  const refreshPolicies = useCallback(async () => {
     try {
-      const res = await fetch("/api/stats", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setStats(json.data);
-        const timeLabel = new Date().toLocaleTimeString();
-        const actualQps = json.data.live_qps ?? 0;
+      const [resBans, resWl, resBl, resGeo, resWaf, resUps, resSsl, resUsers, resProf] = await Promise.all([
+        fetch("/api/bans"),
+        fetch("/api/whitelist"),
+        fetch("/api/blacklist"),
+        fetch("/api/geoip"),
+        fetch("/api/waf/custom-rules"),
+        fetch("/api/upstreams"),
+        fetch("/api/ssl"),
+        fetch("/api/users"),
+        fetch("/api/profile"),
+      ]);
 
-        setChartLabels((prev) => [...prev.slice(1), timeLabel]);
-        setChartPoints((prev) => [...prev.slice(1), actualQps]);
+      if (resBans.ok) {
+        const d = await resBans.json();
+        setBans(d.bans || []);
       }
-    } catch {}
+      if (resWl.ok) {
+        const d = await resWl.json();
+        setWhitelist(d.whitelist || []);
+      }
+      if (resBl.ok) {
+        const d = await resBl.json();
+        setBlacklist(d.blacklist || []);
+      }
+      if (resGeo.ok) {
+        const d = await resGeo.json();
+        setBlockedCountries(d.blocked_countries || []);
+      }
+      if (resWaf.ok) {
+        const d = await resWaf.json();
+        setCustomWafRules(d.rules || []);
+      }
+      if (resUps.ok) {
+        const d = await resUps.json();
+        setUpstreams(d.upstreams || []);
+      }
+      if (resSsl.ok) {
+        const d = await resSsl.json();
+        setSslDomains(d.domains || []);
+      }
+      if (resUsers.ok) {
+        const d = await resUsers.json();
+        setAdminUsers(d.users || []);
+      }
+      if (resProf.ok) {
+        const d = await resProf.json();
+        setProfileData(d);
+      }
+    } catch {
+      // Ignore
+    }
   }, []);
 
-  const fetchAttackMode = async () => {
-    try {
-      const res = await fetch("/api/toggle-attack-mode", { cache: "no-store" });
-      const json = await res.json();
-      setUnderAttackMode(json.enabled);
-    } catch {}
-  };
-
-  const toggleUnderAttackMode = () => {
-    openConfirm({
-      title: t.confirmTitle,
-      message: t.confirmAttackMode,
-      variant: "warning",
-      onConfirm: async () => {
-        const nextState = !underAttackMode;
-        try {
-          const res = await fetch("/api/toggle-attack-mode", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled: nextState }),
-          });
-          if (res.ok) {
-            setUnderAttackMode(nextState);
-            showToast(
-              nextState
-                ? lang === "id"
-                  ? "🛡️ Mode Under Attack DIAKTIFKAN!"
-                  : "🛡️ Under Attack Mode ACTIVATED!"
-                : lang === "id"
-                ? "Mode Under Attack dinonaktifkan."
-                : "Under Attack Mode deactivated."
-            );
-          }
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const fetchLogs = async () => {
-    try {
-      const res = await fetch("/api/logs", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setLiveLogs(json.logs || []);
-      }
-    } catch {}
-  };
-
-  const fetchHealth = async () => {
-    try {
-      const res = await fetch("/api/health", { cache: "no-store" });
-      const data = await res.json();
-      setHealth(data);
-    } catch {}
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch("/api/users", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setAdminUsers(json.users || []);
-      }
-    } catch {}
-  };
-
-  const fetchProfile = async () => {
-    try {
-      const res = await fetch("/api/profile", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setProfileApiKey(json.profile.api_key);
-      }
-    } catch {}
-  };
-
-  const fetchCustomWafRules = async () => {
-    try {
-      const res = await fetch("/api/waf/custom-rules", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setCustomWafRules(json.rules || []);
-      }
-    } catch {}
-  };
-
-  const fetchUpstreams = async () => {
-    try {
-      const res = await fetch("/api/upstreams", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setUpstreams(json.upstreams || []);
-        if (json.algorithm) setLbAlgorithm(json.algorithm);
-      }
-    } catch {}
-  };
-
-  const fetchSslDomains = async () => {
-    try {
-      const res = await fetch("/api/ssl", { cache: "no-store" });
-      const json = await res.json();
-      if (json.status === "success") {
-        setSslDomains(json.domains || []);
-      }
-    } catch {}
-  };
-
-  const fetchNavData = useCallback(async () => {
-    try {
-      if (currentNav === "overview" || currentNav === "bans") {
-        const res = await fetch("/api/bans");
-        const json = await res.json();
-        setBans(json.bans || []);
-      }
-      if (currentNav === "overview" || currentNav === "whitelist") {
-        const res = await fetch("/api/whitelist");
-        const json = await res.json();
-        setWhitelist(json.whitelist || []);
-      }
-      if (currentNav === "overview" || currentNav === "blacklist") {
-        const res = await fetch("/api/blacklist");
-        const json = await res.json();
-        setBlacklist(json.blacklist || []);
-      }
-      if (currentNav === "overview" || currentNav === "geoip" || currentNav === "analytics") {
-        const res = await fetch("/api/geoip");
-        const json = await res.json();
-        setBlockedCountries(json.blocked || []);
-      }
-      if (currentNav === "overview" || currentNav === "logs" || currentNav === "analytics") {
-        fetchLogs();
-      }
-      if (currentNav === "custom_waf" || currentNav === "waf") {
-        fetchCustomWafRules();
-      }
-      if (currentNav === "upstreams") {
-        fetchUpstreams();
-      }
-      if (currentNav === "ssl") {
-        fetchSslDomains();
-      }
-      if (currentNav === "users") {
-        fetchUsers();
-      }
-      if (currentNav === "profile") {
-        fetchProfile();
-      }
-    } catch {}
-  }, [currentNav]);
-
   useEffect(() => {
-    fetchStats();
-    fetchAttackMode();
-    fetchNavData();
-
-    // 4s Non-blocking Polling
-    const interval = setInterval(() => {
-      fetchStats();
-      if (currentNav === "overview" || currentNav === "logs" || currentNav === "analytics") {
-        fetchLogs();
-      }
-    }, 4000);
-
+    refreshTelemetry();
+    refreshPolicies();
+    const interval = setInterval(refreshTelemetry, 2500);
     return () => clearInterval(interval);
-  }, [currentNav, fetchStats, fetchNavData]);
+  }, [refreshTelemetry, refreshPolicies]);
 
-  // Actions
-  const handleLogout = () => {
-    openConfirm({
-      title: t.logout,
-      message: t.confirmLogout,
-      variant: "danger",
-      onConfirm: async () => {
-        await fetch("/api/auth/logout", { method: "POST" });
-        window.location.href = "/login";
-      },
-    });
+  // Action Handlers
+  const handleToggleUnderAttack = async () => {
+    try {
+      const nextMode = !stats.surge_mode;
+      const res = await fetch("/api/toggle-attack-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: nextMode }),
+      });
+      if (res.ok) {
+        setStats((prev) => ({ ...prev, surge_mode: nextMode }));
+        showToast(nextMode ? "EMERGENCY UNDER ATTACK MODE ACTIVATED" : "Under Attack Mode Disengaged");
+      }
+    } catch {
+      showToast("Failed to toggle attack mode");
+    }
   };
 
-  const handleLaunchSimulation = () => {
-    openConfirm({
-      title: t.simTitle,
-      message: `${lang === "id" ? "Luncurkan simulasi serangan" : "Launch attack simulation for vector"}: ${simVector} (${simIntensity} requests)?`,
+  const handleManualBan = async (ip: string, duration: number, reason: string) => {
+    try {
+      const res = await fetch("/api/bans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip, duration, reason }),
+      });
+      if (res.ok) {
+        showToast(`IP ${ip} quarantined successfully`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to ban IP");
+    }
+  };
+
+  const handleUnban = (ip: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Pardon & Unban IP",
+      message: `Are you sure you want to completely unban and pardon IP ${ip}? All active violation tokens and canary blacklists will be cleared.`,
       variant: "primary",
+      confirmLabel: "Unban & Pardon",
       onConfirm: async () => {
-        setSimRunning(true);
         try {
-          const res = await fetch("/api/simulator", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ vector: simVector, intensity: simIntensity }),
-          });
-          const data = await res.json();
-          if (data.status === "success") {
-            setSimReport(data.report);
-            showToast(
-              lang === "id"
-                ? `⚡ Simulasi selesai! ${data.report.packets_blocked} paket berhasil ditepis (${data.report.deflection_rate})`
-                : `⚡ Simulation complete! ${data.report.packets_blocked} packets deflected (${data.report.deflection_rate})`
-            );
-            fetchStats();
-            fetchLogs();
+          const res = await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+          if (res.ok) {
+            showToast(`IP ${ip} has been pardoned and unbanned`);
+            refreshPolicies();
+            if (lookupResult && lookupResult.ip === ip) {
+              handleExecuteLookup(ip);
+            }
           }
-        } catch (err: any) {
-          showToast(`Simulation Error: ${err.message}`);
-        } finally {
-          setSimRunning(false);
+        } catch {
+          showToast("Failed to unban IP");
         }
       },
     });
   };
 
-  const handleCreateCustomRule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ruleName || !ruleVal) return;
+  const handleAddWhitelist = async (ip: string) => {
+    try {
+      const res = await fetch("/api/whitelist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      if (res.ok) {
+        showToast(`IP ${ip} added to Whitelist`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to whitelist IP");
+    }
+  };
+
+  const handleRemoveWhitelist = async (ip: string) => {
+    try {
+      const res = await fetch(`/api/whitelist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(`IP ${ip} removed from Whitelist`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to remove whitelist IP");
+    }
+  };
+
+  const handleAddBlacklist = async (ip: string) => {
+    try {
+      const res = await fetch("/api/blacklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      if (res.ok) {
+        showToast(`IP ${ip} permanently blacklisted`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to blacklist IP");
+    }
+  };
+
+  const handleRemoveBlacklist = async (ip: string) => {
+    try {
+      const res = await fetch(`/api/blacklist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(`IP ${ip} removed from Blacklist`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to remove blacklist IP");
+    }
+  };
+
+  const handleAddCountry = async (code: string) => {
+    try {
+      const res = await fetch("/api/geoip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: code }),
+      });
+      if (res.ok) {
+        showToast(`Country ${code} blocked successfully`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to block country");
+    }
+  };
+
+  const handleRemoveCountry = async (code: string) => {
+    try {
+      const res = await fetch(`/api/geoip?country=${encodeURIComponent(code)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(`Country ${code} unblocked`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to unblock country");
+    }
+  };
+
+  const handleAddWafRule = async (rule: any) => {
     try {
       const res = await fetch("/api/waf/custom-rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: ruleName,
-          field: ruleField,
-          operator: ruleOp,
-          value: ruleVal,
-          action: ruleAction,
-          enabled: true,
-        }),
+        body: JSON.stringify(rule),
       });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`WAF Rule "${ruleName}" deployed!`);
-        setRuleName("");
-        setRuleVal("");
-        fetchCustomWafRules();
+      if (res.ok) {
+        showToast("Custom WAF Rule deployed");
+        refreshPolicies();
       }
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
+    } catch {
+      showToast("Failed to deploy WAF rule");
     }
   };
 
-  const handleDeleteCustomRule = (id: string) => {
-    openConfirm({
-      title: t.customWafTitle,
-      message: t.confirmDeleteRule,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/waf/custom-rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-          showToast("WAF Rule deleted");
-          fetchCustomWafRules();
-        } catch (err: any) {
-          showToast(`Error: ${err.message}`);
-        }
-      },
-    });
+  const handleDeleteWafRule = async (id: string) => {
+    try {
+      const res = await fetch(`/api/waf/custom-rules?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Custom WAF Rule deleted");
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to delete WAF rule");
+    }
   };
 
-  const handleAddUpstream = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUpsHost || !newUpsPort) return;
+  const handleAddUpstream = async (target: string, port: number, weight: number) => {
     try {
       const res = await fetch("/api/upstreams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          host: newUpsHost,
-          port: newUpsPort,
-          protocol: newUpsProtocol,
-          weight: newUpsWeight,
-        }),
+        body: JSON.stringify({ target, port, weight }),
       });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`Upstream ${newUpsHost}:${newUpsPort} added!`);
-        setNewUpsHost("");
-        fetchUpstreams();
+      if (res.ok) {
+        showToast("Upstream proxy server added");
+        refreshPolicies();
       }
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
+    } catch {
+      showToast("Failed to add upstream");
     }
   };
 
-  const handleDeleteUpstream = (id: string) => {
-    openConfirm({
-      title: t.upstreamTitle,
-      message: t.confirmDeleteUpstream,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/upstreams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-          showToast("Upstream removed");
-          fetchUpstreams();
-        } catch (err: any) {
-          showToast(`Error: ${err.message}`);
-        }
-      },
-    });
+  const handleDeleteUpstream = async (id: string) => {
+    try {
+      const res = await fetch(`/api/upstreams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Upstream proxy server removed");
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to remove upstream");
+    }
   };
 
-  const handleAddDomain = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDomain) return;
+  const handleAddDomain = async (domain: string, issuer: string) => {
     try {
       const res = await fetch("/api/ssl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domain: newDomain,
-          issuer: newIssuer,
-        }),
+        body: JSON.stringify({ domain, issuer }),
       });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`Domain ${newDomain} protected with SSL!`);
-        setNewDomain("");
-        fetchSslDomains();
+      if (res.ok) {
+        showToast(`Domain ${domain} configured`);
+        refreshPolicies();
       }
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
+    } catch {
+      showToast("Failed to add domain");
     }
   };
 
-    const handleIssueLetsEncrypt = async (domainName: string) => {
+  const handleDeleteDomain = async (id: string) => {
     try {
-      showToast(`Initiating Zero-Touch Let's Encrypt ACME verification for ${domainName}...`);
+      const res = await fetch(`/api/ssl?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Domain removed from SSL policy");
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to remove domain");
+    }
+  };
+
+  const handleToggleSslFlag = async (id: string, flag: "force_https" | "hsts" | "tls13_strict") => {
+    try {
+      const res = await fetch("/api/ssl", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, flag }),
+      });
+      if (res.ok) {
+        showToast("SSL security flag updated");
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to update SSL flag");
+    }
+  };
+
+  const handleIssueLetsEncrypt = async (domainName: string) => {
+    showToast(`Requesting Let's Encrypt SSL certificate for ${domainName}...`);
+    try {
       const res = await fetch("/api/ssl/issue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain: domainName }),
       });
       const data = await res.json();
-      if (data.status === "success") {
-        showToast(`Let's Encrypt SSL Certificate successfully provisioned for ${domainName}!`);
-        fetchSslDomains();
+      if (res.ok && data.status === "ok") {
+        showToast(`✅ Let's Encrypt SSL certificate active for ${domainName}!`);
+        refreshPolicies();
       } else {
-        showToast(data.error || "Failed to provision Let's Encrypt SSL");
+        showToast(`⚠️ SSL Issue notice: ${data.message || "Ready in certbot directory"}`);
       }
     } catch {
-      showToast("Network error provisioning SSL");
+      showToast("Error requesting Let's Encrypt SSL");
     }
   };
 
-  const handleToggleSslFlag = (id: string, flag: "force_https" | "hsts" | "tls13_strict") => {
-    openConfirm({
-      title: t.sslTitle,
-      message: `${lang === "id" ? "Ubah pengaturan flag keamanan" : "Toggle SSL security flag"}: ${flag}?`,
-      variant: "warning",
-      onConfirm: async () => {
-        try {
-          await fetch("/api/ssl", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "toggle_flag", id, flag }),
-          });
-          showToast("Security flag updated!");
-          fetchSslDomains();
-        } catch (err: any) {
-          showToast(`Error: ${err.message}`);
-        }
-      },
-    });
+  const handleAddUser = async (username: string, email: string, role: string, pass: string) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, role, password: pass }),
+      });
+      if (res.ok) {
+        showToast(`Admin user ${username} registered`);
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to add user");
+    }
   };
 
-  const handleDeleteDomain = (id: string) => {
-    openConfirm({
-      title: t.sslTitle,
-      message: t.confirmDeleteDomain,
+  const handleDeleteUser = async (id: string) => {
+    try {
+      const res = await fetch(`/api/users?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("User account deleted");
+        refreshPolicies();
+      }
+    } catch {
+      showToast("Failed to delete user");
+    }
+  };
+
+  const handleRegenApiKey = async () => {
+    try {
+      const res = await fetch("/api/profile/regen-key", { method: "POST" });
+      if (res.ok) {
+        const d = await res.json();
+        setProfileData((prev: any) => ({ ...prev, api_key: d.api_key }));
+        showToast("New Master API Key generated");
+      }
+    } catch {
+      showToast("Failed to regenerate key");
+    }
+  };
+
+  const handleFlushState = async () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Flush Transient Redis Cache",
+      message: "Are you sure you want to flush temporary rate limit buckets and packet buffers?",
       variant: "danger",
+      confirmLabel: "Flush Cache",
       onConfirm: async () => {
         try {
-          await fetch(`/api/ssl?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-          showToast("Domain removed");
-          fetchSslDomains();
-        } catch (err: any) {
-          showToast(`Error: ${err.message}`);
-        }
-      },
-    });
-  };
-
-  const handleUnban = (ip: string) => {
-    openConfirm({
-      title: t.navBans,
-      message: `${t.confirmUnban} (${ip})`,
-      variant: "warning",
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
-          const json = await res.json();
-          if (json.status === "success") {
-            showToast(`IP ${ip} unbanned!`);
-            fetchNavData();
-            fetchStats();
+          const res = await fetch("/api/maintenance/flush-state", { method: "POST" });
+          if (res.ok) {
+            showToast("Redis transient cache flushed successfully");
+            refreshTelemetry();
           }
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
+        } catch {
+          showToast("Failed to flush state");
         }
       },
     });
   };
 
-  const handleManualBan = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!banIp) return;
-    openConfirm({
-      title: t.quickBanTitle,
-      message: `${t.confirmBan} (${banIp}) for ${banDuration}s?`,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          const res = await fetch("/api/bans", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ip: banIp, duration_sec: parseInt(banDuration, 10) }),
-          });
-          const json = await res.json();
-          if (json.status === "success") {
-            showToast(`IP ${banIp} quarantined for ${banDuration}s`);
-            setBanIp("");
-            fetchNavData();
-            fetchStats();
-          }
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const handleExecuteLookup = async (overrideIp?: string) => {
-    const ip = overrideIp || lookupTargetIp;
-    if (!ip.trim()) return;
+  const handleExecuteLookup = async (ipTarget?: string) => {
+    const ip = ipTarget || lookupTargetIp;
+    if (!ip) return;
     setLookupLoading(true);
     try {
-      const res = await fetch(`/api/ip-lookup?ip=${encodeURIComponent(ip.trim())}`);
-      const data = await res.json();
-      if (data.status === "success") {
+      const res = await fetch(`/api/ip-lookup?ip=${encodeURIComponent(ip)}`);
+      if (res.ok) {
+        const data = await res.json();
         setLookupResult(data);
       } else {
-        showToast(data.error || "Failed to lookup IP intelligence");
+        showToast("IP not found or invalid format");
       }
-    } catch (err: any) {
-      showToast(`Lookup Error: ${err.message}`);
+    } catch {
+      showToast("Lookup request failed");
     } finally {
       setLookupLoading(false);
     }
   };
 
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUsername || !newUserPassword) return;
+  // Simulator
+  const handleStartSim = async () => {
+    setSimRunning(true);
+    showToast(`Simulating ${simVector} attack at ${simIntensity * 50} QPS`);
     try {
-      const res = await fetch("/api/users", {
+      const res = await fetch("/api/simulator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newUsername, password: newUserPassword, role: newUserRole }),
+        body: JSON.stringify({ vector: simVector, intensity: simIntensity }),
       });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`User ${newUsername} created!`);
-        setNewUsername("");
-        setNewUserPassword("");
-        fetchUsers();
-      } else {
-        showToast(json.error || "Failed to create user");
+      if (res.ok) {
+        const data = await res.json();
+        setSimPackets(data.packets || []);
       }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
+    } catch {
+      //
     }
   };
 
-  const handleDeleteUser = (username: string) => {
-    openConfirm({
-      title: t.usersTitle,
-      message: `${t.confirmDeleteUser} (${username})?`,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/users?username=${encodeURIComponent(username)}`, { method: "DELETE" });
-          const json = await res.json();
-          if (json.status === "success") {
-            showToast(`User ${username} deleted`);
-            fetchUsers();
-          } else {
-            showToast(json.error || "Failed to delete user");
-          }
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
+  const handleStopSim = () => {
+    setSimRunning(false);
+    showToast("Simulation stopped");
   };
 
-  const handleRegenerateApiKey = () => {
-    openConfirm({
-      title: t.apiKeyTitle,
-      message: t.confirmRegenKey,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          const res = await fetch("/api/profile", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "regenerate_key" }),
-          });
-          const json = await res.json();
-          if (json.status === "success") {
-            setProfileApiKey(json.api_key);
-            showToast("REST API Key regenerated!");
-          }
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      showToast("Passwords do not match!");
-      return;
-    }
+  const handleLogout = async () => {
     try {
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "change_password", new_password: newPassword }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast("Admin password updated!");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        showToast(json.error || "Failed to update password");
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+    } catch {
+      router.push("/login");
     }
   };
-
-  const handleAddWhitelist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!whitelistIp) return;
-    try {
-      const res = await fetch("/api/whitelist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: whitelistIp }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`IP ${whitelistIp} added to whitelist!`);
-        setWhitelistIp("");
-        fetchNavData();
-        fetchStats();
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
-  };
-
-  const handleRemoveWhitelist = (ip: string) => {
-    openConfirm({
-      title: t.navWhitelist,
-      message: `${lang === "id" ? "Hapus IP dari whitelist" : "Remove IP from whitelist"}: ${ip}?`,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/whitelist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
-          showToast(`IP ${ip} removed from whitelist`);
-          fetchNavData();
-          fetchStats();
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const handleAddBlacklist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!blacklistIp) return;
-    try {
-      const res = await fetch("/api/blacklist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: blacklistIp }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`IP ${blacklistIp} added to permanent blacklist!`);
-        setBlacklistIp("");
-        fetchNavData();
-        fetchStats();
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
-  };
-
-  const handleRemoveBlacklist = (ip: string) => {
-    openConfirm({
-      title: t.navBlacklist,
-      message: `${lang === "id" ? "Hapus IP dari blacklist" : "Remove IP from blacklist"}: ${ip}?`,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/blacklist?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
-          showToast(`IP ${ip} removed from blacklist`);
-          fetchNavData();
-          fetchStats();
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const handleAddCountry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCountryCode || newCountryCode.length !== 2) return;
-    try {
-      const res = await fetch("/api/geoip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ country: newCountryCode }),
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        showToast(`Country ${newCountryCode.toUpperCase()} added to blocklist!`);
-        setNewCountryCode("");
-        fetchNavData();
-      }
-    } catch (e: any) {
-      showToast(`Error: ${e.message}`);
-    }
-  };
-
-  const handleRemoveCountry = (country: string) => {
-    openConfirm({
-      title: t.navGeoip,
-      message: `${lang === "id" ? "Buka blokir negara" : "Unblock country"}: ${country}?`,
-      variant: "warning",
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/geoip?country=${encodeURIComponent(country)}`, { method: "DELETE" });
-          showToast(`Country ${country} unblocked`);
-          fetchNavData();
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const handleGatewayAction = (action: string, label: string) => {
-    openConfirm({
-      title: t.navMaintenance,
-      message: `${t.confirmMaintAction}: "${label}"?`,
-      variant: "danger",
-      onConfirm: async () => {
-        try {
-          const res = await fetch("/api/gateway-control", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action }),
-          });
-          const json = await res.json();
-          if (json.status === "success") {
-            showToast(json.message || `${label} executed successfully!`);
-            fetchStats();
-            fetchNavData();
-          }
-        } catch (e: any) {
-          showToast(`Error: ${e.message}`);
-        }
-      },
-    });
-  };
-
-  const exportLogsAsJson = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(liveLogs, null, 2));
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `fluxwall_security_audit_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    showToast("Audit logs exported to JSON file!");
-  };
-
-  const handleNavSelect = (nav: NavSection) => {
-    setCurrentNav(nav);
-    setMobileMenuOpen(false);
-  };
-
-  const filteredBans = bans.filter((b) => b.ip.toLowerCase().includes(searchFilter.toLowerCase()));
-
-  // Analytics Chart Data
-  const threatVectorData = {
-    labels: [t.vectorBot, t.vectorWaf, t.vectorRate, t.vectorGeo],
-    data: [
-      Math.max(stats.threats_breakdown?.bad_bot || 0, 14),
-      8,
-      Math.max(stats.threats_breakdown?.rate_limited || 0, 22),
-      Math.max(stats.threats_breakdown?.geo_blocked || 0, 6),
-    ],
-  };
-
-  const topCountriesData = {
-    labels: ["CN", "RU", "US", "BR", "KP", "ID", "DE", "VN"],
-    data: [142, 98, 64, 45, 38, 29, 18, 12],
-  };
-
-  // Reusable Sidebar Nav Content
-  const renderNavLinks = () => (
-    <div className="p-4 space-y-4">
-      {/* Section 1: Monitoring & Telemetry */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("monitoring")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navMonitoring}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.monitoring ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.monitoring && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("overview")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "overview"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4 text-primary" />
-              <span>{t.navOverview}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("forensics")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "forensics"
-                  ? "bg-red-500/20 text-white border border-red-500/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-red-500/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShieldAlert className="w-4 h-4 text-red-400 animate-pulse" />
-                <span className="text-red-300 font-bold">{t.navForensics}</span>
-              </div>
-              <Badge variant="destructive" className="text-[8px] py-0 px-1 font-black bg-red-500/30 text-red-300">
-                SOC
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("threat_map")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "threat_map"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <MapPin className="w-4 h-4 text-primary animate-pulse" />
-              <span>{t.navThreatMap}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("packet_stream")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "packet_stream"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Terminal className="w-4 h-4 text-primary" />
-              <span>{t.navPacketInspector}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("analytics")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "analytics"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <PieChart className="w-4 h-4 text-primary" />
-              <span>{t.navAnalytics}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("simulator")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "simulator"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Crosshair className="w-4 h-4 text-primary" />
-              <span>{t.navSimulator}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("logs")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "logs"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Radio className="w-4 h-4 text-primary" />
-                <span>{t.navAttackLogs}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {liveLogs.length}
-              </Badge>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Section 2: Security Policies (Collapsible Dropdown Accordion) */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("policies")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navPolicies}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.policies ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.policies && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("lookup")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "lookup"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Fingerprint className="w-4 h-4 text-primary" />
-              <span>{t.navIpLookup}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("bans")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "bans"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Lock className="w-4 h-4 text-primary" />
-                <span>{t.navBans}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {bans.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("whitelist")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "whitelist"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-                <span>{t.navWhitelist}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {whitelist.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("blacklist")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "blacklist"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Ban className="w-4 h-4 text-primary" />
-                <span>{t.navBlacklist}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {blacklist.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("geoip")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "geoip"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Globe className="w-4 h-4 text-primary" />
-                <span>{t.navGeoip}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {blockedCountries.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("custom_waf")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "custom_waf"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Shield className="w-4 h-4 text-primary" />
-                <span>{t.navCustomWaf}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {customWafRules.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("waf")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "waf"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4 text-primary" />
-              <span>{t.navWaf}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("ratelimits")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "ratelimits"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Gauge className="w-4 h-4 text-primary" />
-              <span>{t.navRateLimits}</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Section 3: Infrastructure & Edge */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("edge")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navInfrastructure}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.edge ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.edge && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("upstreams")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "upstreams"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Server className="w-4 h-4 text-primary" />
-                <span>{t.navUpstreams}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {upstreams.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("ssl")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "ssl"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Layers className="w-4 h-4 text-primary" />
-                <span>{t.navSsl}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {sslDomains.length}
-              </Badge>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Section 4: Access & Administration */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("admin")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navAdministration}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.admin ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.admin && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("users")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "users"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-primary" />
-                <span>{t.navUsers}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {adminUsers.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("profile")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "profile"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Key className="w-4 h-4 text-primary" />
-                <span>{t.navProfile}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                Active
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("maintenance")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "maintenance"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Wrench className="w-4 h-4 text-primary" />
-              <span>{t.navMaintenance}</span>
-            </button>
-
-
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   return (
-    <div className="flex min-h-screen bg-[#080b11] text-foreground bg-grid-cyber">
-      {/* Action Confirmation Modal Dialog */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-5 right-5 z-[99999] bg-primary text-primary-foreground font-mono text-xs px-4 py-2.5 rounded-lg shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Global Confirmation Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
         message={confirmDialog.message}
         variant={confirmDialog.variant}
-        confirmLabel={t.btnConfirm}
-        cancelLabel={t.btnCancel}
+        confirmLabel={confirmDialog.confirmLabel}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-primary/20 border border-primary text-sky-200 px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
-          <CheckCircle2 className="w-5 h-5 text-primary" />
-          <span className="font-semibold text-xs tracking-wide">{toastMessage}</span>
-        </div>
-      )}
+      {/* Terminus Diagnostics Modal */}
+      <DiagnosticsModal
+        isOpen={diagModalOpen}
+        onClose={() => setDiagModalOpen(false)}
+        health={health}
+        t={t}
+      />
 
-      {/* Mobile Drawer Backdrop */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 md:hidden animate-in fade-in duration-200"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Slide-out Drawer */}
-      <div
-        className={`fixed top-0 bottom-0 left-0 w-72 bg-[#090d16] border-r border-primary/20 z-50 md:hidden flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      {/* Sidebar Navigation */}
+      <aside className="w-full md:w-64 border-r border-border/80 bg-card/40 flex-shrink-0 flex flex-col justify-between hidden md:flex">
         <div className="overflow-y-auto">
-          {/* Drawer Header */}
-          <div className="h-16 px-5 border-b border-primary/20 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-primary/10 border border-primary/30 rounded-lg">
-                <ShieldAlert className="w-4 h-4 text-primary" />
-              </div>
-              <span className="font-bold text-xs text-white">{t.brandTitle}</span>
-            </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="Close navigation drawer"
-              onClick={() => setMobileMenuOpen(false)}
-              className="h-8 w-8 text-muted-foreground hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {/* Drawer Links */}
-          {renderNavLinks()}
-        </div>
-
-        {/* Drawer Footer */}
-        <div className="p-4 border-t border-primary/20 bg-[#070a12]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
-                <UserCheck className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white leading-tight">{t.adminPortal}</div>
-                <div className="text-[10px] text-primary">{t.authenticated}</div>
-              </div>
-            </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="Log out of admin session"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* 1. Desktop Sleek Enterprise Sidebar (Left Column) */}
-      <aside className="w-64 border-r border-primary/20 bg-[#090d16]/95 backdrop-blur-xl flex flex-col justify-between shrink-0 hidden md:flex min-h-screen sticky top-0">
-        {/* Brand Header */}
-        <div>
-          <div className="h-16 px-6 border-b border-primary/20 flex items-center gap-3">
-            <div className="p-2 bg-primary/10 border border-primary/30 rounded-xl shadow-inner shadow-primary/20">
-              <ShieldAlert className="w-5 h-5 text-primary" />
+          {/* Logo & Brand Header */}
+          <div className="p-4 border-b border-border/80 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10 border border-primary/30 text-primary">
+              <Shield className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-sm tracking-tight text-white">{t.brandTitle}</span>
-                <Badge variant="default" className="text-[8px] py-0 px-1 font-bold">
-                  v1.0.1
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground">{t.brandSubtitle}</p>
+              <div className="font-black text-sm tracking-wider text-white uppercase">{t.brandTitle}</div>
+              <div className="text-[10px] font-mono text-primary font-bold">{t.brandSubtitle}</div>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          {renderNavLinks()}
+          <SidebarNav
+            currentNav={currentNav}
+            onSelectNav={setCurrentNav}
+            t={t}
+            collapsedSections={collapsedSections}
+            onToggleSection={toggleSection}
+            counts={{
+              forensics: 0,
+              logs: liveLogs.length,
+              bans: bans.length,
+              whitelist: whitelist.length,
+              blacklist: blacklist.length,
+              blockedCountries: blockedCountries.length,
+              customWafRules: customWafRules.length,
+              upstreams: upstreams.length,
+              sslDomains: sslDomains.length,
+              adminUsers: adminUsers.length,
+            }}
+          />
         </div>
 
-        {/* Sidebar Footer (Admin Profile & Logout) */}
-        <div className="p-4 border-t border-primary/20 bg-[#070a12]">
+        {/* Sidebar Footer Controls */}
+        <div className="p-4 border-t border-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
-                <UserCheck className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white leading-tight">{t.adminPortal}</div>
-                <div className="text-[10px] text-primary">{t.authenticated}</div>
-              </div>
-            </div>
             <Button
-              size="icon"
+              size="sm"
+              variant="outline"
+              onClick={() => setLang(lang === "en" ? "id" : "en")}
+              className="text-[11px] h-7 gap-1.5 border-border/80 text-muted-foreground hover:text-white"
+            >
+              <Languages className="w-3.5 h-3.5" />
+              <span>{lang === "en" ? "ID" : "EN"}</span>
+            </Button>
+
+            <Button
+              size="sm"
               variant="ghost"
-              aria-label="Log out of admin session"
               onClick={handleLogout}
-              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7"
+              className="text-[11px] h-7 text-destructive hover:bg-destructive/10 gap-1.5"
             >
               <LogOut className="w-3.5 h-3.5" />
+              <span>{t.logout}</span>
             </Button>
           </div>
         </div>
       </aside>
 
-      {/* 2. Main Work Area (Right Column) */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header Bar */}
-        <header className="h-16 border-b border-primary/20 bg-[#090d16]/85 backdrop-blur-xl px-4 md:px-8 flex items-center justify-between sticky top-0 z-40">
-          {/* Mobile Hamburger & Breadcrumbs */}
-          <div className="flex items-center gap-2.5">
-            {/* Hamburger Button (Mobile Only) */}
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Top Navbar */}
+        <header className="h-14 border-b border-border/80 bg-card/60 px-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <Button
               size="icon"
-              variant="outline"
-              aria-label="Open mobile navigation menu"
-              onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden h-8 w-8 border-primary/30 text-primary hover:bg-primary/10 shrink-0"
+              variant="ghost"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden h-8 w-8 text-muted-foreground"
             >
-              <Menu className="w-4 h-4" />
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </Button>
 
-            <span className="text-muted-foreground font-medium hidden sm:inline text-xs">{t.dashboardBreadcrumb}</span>
-            <ChevronRight className="w-3 h-3 text-muted-foreground hidden sm:inline" />
-            <span className="text-white font-bold uppercase tracking-wider font-mono text-[11px] text-primary truncate max-w-[120px] sm:max-w-none">
-              {currentNav}
-            </span>
+            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <span className="text-white">{t.dashboardBreadcrumb}</span>
+              <ChevronRight className="w-3 h-3" />
+              <span className="text-primary uppercase">{currentNav.replace("_", " ")}</span>
+            </div>
           </div>
 
-          {/* Master Under Attack Toggle, Language Selector & Diagnostics */}
-          <div className="flex items-center gap-2">
-            {/* Language Switcher (ID / EN) */}
-            <div className="flex items-center bg-secondary/50 rounded-lg p-0.5 border border-primary/20">
-              <button
-                onClick={() => changeLanguage("id")}
-                aria-label="Ganti bahasa ke Bahasa Indonesia"
-                className={`px-2 py-1 text-[11px] font-bold rounded-md transition ${
-                  lang === "id" ? "bg-primary text-black" : "text-muted-foreground hover:text-white"
-                }`}
-              >
-                ID
-              </button>
-              <button
-                onClick={() => changeLanguage("en")}
-                aria-label="Switch language to English"
-                className={`px-2 py-1 text-[11px] font-bold rounded-md transition ${
-                  lang === "en" ? "bg-primary text-black" : "text-muted-foreground hover:text-white"
-                }`}
-              >
-                EN
-              </button>
-            </div>
-
-            {/* 1-Click Under Attack Mode Master Switch with Confirm */}
+          <div className="flex items-center gap-2.5">
             <Button
               size="sm"
-              variant={underAttackMode ? "cyber" : "outline"}
-              aria-label="Toggle Under Attack Mode"
-              onClick={toggleUnderAttackMode}
-              className={`gap-1.5 text-xs font-bold ${
-                underAttackMode
-                  ? "shadow-lg shadow-primary/30 animate-pulse border-primary"
-                  : "border-primary/30 text-primary hover:bg-primary/10"
-              }`}
+              variant={stats.surge_mode ? "destructive" : "outline"}
+              onClick={handleToggleUnderAttack}
+              className="text-[11px] font-bold h-7 gap-1.5"
             >
-              <Power className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{underAttackMode ? t.underAttackOn : t.underAttackOff}</span>
-              <span className="sm:hidden">{underAttackMode ? "ATTACK ON" : "NORMAL"}</span>
+              <Power className="w-3 h-3" />
+              <span>{stats.surge_mode ? t.underAttackOn : t.underAttackOff}</span>
             </Button>
 
-            {/* Terminus Health Inspector Button */}
             <Button
-              variant="outline"
               size="sm"
-              aria-label="Open Terminus diagnostics inspector"
-              onClick={() => {
-                fetchHealth();
-                setShowHealthModal(true);
-              }}
-              className="gap-2 border-primary/30 text-primary hover:bg-primary/10 px-2.5"
+              variant="secondary"
+              onClick={() => setDiagModalOpen(true)}
+              className="text-[11px] font-mono h-7 gap-1.5"
             >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              <span className="font-medium text-xs hidden lg:inline">
-                {health?.status === "ok" ? t.terminusHealthy : t.terminusDiagnostics}
-              </span>
+              <Activity className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span>{t.terminusHealthy}</span>
             </Button>
           </div>
         </header>
 
-        {/* Content Container */}
-        <main className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto w-full flex-1">
-          {/* Alert Banner */}
-          {underAttackMode ? (
-            <Alert variant="cyber" className="border-primary/40 animate-pulse">
-              <Flame className="h-4 w-4 text-primary" />
-              <AlertTitle>{t.underAttackAlertTitle}</AlertTitle>
-              <AlertDescription>{t.underAttackAlertDesc}</AlertDescription>
-            </Alert>
-          ) : stats.surge_mode ? (
-            <Alert variant="cyber" className="border-primary/40">
-              <Zap className="h-4 w-4 text-primary" />
-              <AlertTitle>{t.surgeAlertTitle}</AlertTitle>
-              <AlertDescription>{t.surgeAlertDesc}</AlertDescription>
-            </Alert>
-          ) : null}
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-b border-border/80 bg-card p-4 space-y-4">
+            <SidebarNav
+              currentNav={currentNav}
+              onSelectNav={(n) => {
+                setCurrentNav(n);
+                setMobileMenuOpen(false);
+              }}
+              t={t}
+              collapsedSections={collapsedSections}
+              onToggleSection={toggleSection}
+              counts={{
+                forensics: 0,
+                logs: liveLogs.length,
+                bans: bans.length,
+                whitelist: whitelist.length,
+                blacklist: blacklist.length,
+                blockedCountries: blockedCountries.length,
+                customWafRules: customWafRules.length,
+                upstreams: upstreams.length,
+                sslDomains: sslDomains.length,
+                adminUsers: adminUsers.length,
+              }}
+            />
+          </div>
+        )}
 
-          {/* VIEW: OVERVIEW & TELEMETRY */}
+        {/* Dynamic Route View Containers */}
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto">
           {currentNav === "overview" && (
-            <div className="space-y-6">
-              {/* 4 Hero Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="glow-primary border-primary/30 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statTraffic}
-                    </CardTitle>
-                    <Activity className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-white">
-                      {stats.live_qps}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">req/sec</span>
-                    </div>
-                    <p className="text-[11px] text-primary mt-1 flex items-center gap-1 font-medium">
-                      <Zap className="w-3 h-3" /> {t.statLatency}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glow-primary border-primary/20 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statBans}
-                    </CardTitle>
-                    <Lock className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-primary">{stats.active_bans}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">{t.statBansSub}</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glow-primary border-primary/20 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statWhitelist}
-                    </CardTitle>
-                    <ShieldCheck className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-white">{stats.whitelist_count}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">{t.statWhitelistSub}</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glow-primary border-primary/20 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statThreats}
-                    </CardTitle>
-                    <Ban className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-primary">{stats.threats_total}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      {t.statThreatsSub}: {stats.blacklist_count} IPs
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Telemetry Chart & Quick Quarantine Form */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 border-primary/20 bg-card/85 glow-primary">
-                  <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <div>
-                      <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                        <Radio className="w-4 h-4 text-primary animate-pulse" /> {t.chartTitle}
-                      </CardTitle>
-                      <CardDescription className="text-[11px]">{t.chartDesc}</CardDescription>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                      {t.pollingEngine}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <TelemetryChart
-                      labels={chartLabels}
-                      dataPoints={chartPoints}
-                      label={t.chartReqSec}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Quick Quarantine Form Card */}
-                <Card className="border-primary/20 bg-card/85 flex flex-col justify-between">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-primary">
-                      <Lock className="w-4 h-4" /> {t.quickBanTitle}
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">{t.quickBanDesc}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleManualBan} className="space-y-3">
-                      <div>
-                        <label htmlFor="quick-ban-ip" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          {t.targetIp}
-                        </label>
-                        <Input
-                          id="quick-ban-ip"
-                          placeholder="e.g. 198.51.100.44"
-                          value={banIp}
-                          onChange={(e) => setBanIp(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="quick-ban-duration" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          {t.banDuration}
-                        </label>
-                        <select
-                          id="quick-ban-duration"
-                          value={banDuration}
-                          onChange={(e) => setBanDuration(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-card/60 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="300">{t.dur5Min}</option>
-                          <option value="900">{t.dur15Min}</option>
-                          <option value="3600">{t.dur1Hour}</option>
-                          <option value="86400">{t.dur24Hours}</option>
-                        </select>
-                      </div>
-                      <Button type="submit" variant="cyber" className="w-full mt-2 gap-2 font-bold" aria-label="Execute Quick IP Quarantine">
-                        <Ban className="w-3.5 h-3.5" /> {t.executeBan}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            <OverviewView
+              stats={stats}
+              t={t}
+              liveLogs={liveLogs}
+              onSelectNav={setCurrentNav}
+            />
           )}
 
-                    {/* VIEW: INCIDENT FORENSICS & CANARY DECOY TRAPS */}
-          {currentNav === "forensics" && (
-            <div className="space-y-6">
-              <IncidentForensics
-                onInvestigateIp={(ip) => {
-                  setLookupTargetIp(ip);
-                  setCurrentNav("lookup");
-                  handleExecuteLookup(ip);
-                }}
-              />
-            </div>
-          )}
+          {currentNav === "threat_map" && <ThreatMap />}
+          {currentNav === "packet_stream" && <PacketStream />}
+          {currentNav === "forensics" && <IncidentForensics />}
+          {currentNav === "analytics" && <AnalyticsView stats={stats} />}
 
-          {/* VIEW: CYBER THREAT MAP */}
-          {currentNav === "threat_map" && (
-            <div className="space-y-6">
-              <CyberThreatMap />
-            </div>
-          )}
-
-          {/* VIEW: LIVE PACKET STREAM & SNIFFER */}
-          {currentNav === "packet_stream" && (
-            <div className="space-y-6">
-              <PacketInspector />
-            </div>
-          )}
-
-          {/* VIEW: THREAT ANALYTICS */}
-          {currentNav === "analytics" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Attack Vector Doughnut Chart */}
-                <Card className="border-primary/20 bg-card/85 glow-primary">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                      <PieChart className="w-4 h-4 text-primary" /> {t.threatBreakdownTitle}
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">{t.threatBreakdownDesc}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col items-center justify-center p-6">
-                    <ThreatVectorChart vectorData={threatVectorData} />
-                  </CardContent>
-                </Card>
-
-                {/* Top Countries Bar Chart */}
-                <Card className="border-primary/20 bg-card/85 glow-primary">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-primary" /> {t.topCountriesTitle}
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">{t.topCountriesDesc}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <TopCountriesChart countryData={topCountriesData} />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {/* VIEW: DDOS ATTACK SIMULATOR SANDBOX */}
           {currentNav === "simulator" && (
-            <div className="space-y-6">
-              <Card className="border-primary/20 bg-card/85 glow-primary">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-primary">
-                    <Crosshair className="w-4 h-4" /> {t.simTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.simDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5 space-y-6">
-                  {/* Simulation Controls Form */}
-                  <div className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="sim-vector-select" className="text-xs font-semibold text-white block mb-1.5">
-                          {t.simVectorLabel}
-                        </label>
-                        <select
-                          id="sim-vector-select"
-                          value={simVector}
-                          onChange={(e) => setSimVector(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="http_flood">{t.simVectorHttpFlood}</option>
-                          <option value="sql_probe">{t.simVectorSqlProbe}</option>
-                          <option value="bad_bot">{t.simVectorBadBot}</option>
-                          <option value="pow_challenge">{t.simVectorPowChallenge}</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label htmlFor="sim-intensity-select" className="text-xs font-semibold text-white block mb-1.5">
-                          {t.simDurationLabel}
-                        </label>
-                        <select
-                          id="sim-intensity-select"
-                          value={simIntensity}
-                          onChange={(e) => setSimIntensity(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="25">Light Test: 25 requests</option>
-                          <option value="50">Standard Burst: 50 requests</option>
-                          <option value="100">Intense Flood: 100 requests</option>
-                          <option value="200">Stress Spike: 200 requests</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="cyber"
-                      onClick={handleLaunchSimulation}
-                      disabled={simRunning}
-                      aria-label="Launch Attack Simulation"
-                      className="w-full sm:w-auto text-xs font-bold gap-2"
-                    >
-                      <Send className={`w-3.5 h-3.5 ${simRunning ? "animate-spin" : ""}`} />
-                      {simRunning ? t.simRunning : t.btnLaunchSim}
-                    </Button>
-                  </div>
-
-                  {/* Simulation Results Report */}
-                  {simReport && (
-                    <div className="p-5 rounded-xl bg-[#090d16] border border-primary/30 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
-                        <div className="flex items-center gap-2">
-                          <ServerCrash className="w-5 h-5 text-primary" />
-                          <span className="font-bold text-sm text-white">{t.simResultsTitle}</span>
-                        </div>
-                        <Badge variant="default" className="font-mono text-xs">
-                          {simReport.deflection_rate} DEFLECTED
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simTotalSent}</div>
-                          <div className="text-base font-black text-white mt-0.5">{simReport.total_packets} reqs</div>
-                        </div>
-
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simDeflected}</div>
-                          <div className="text-base font-black text-primary mt-0.5">{simReport.packets_blocked} dropped</div>
-                        </div>
-
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simAvgLatency}</div>
-                          <div className="text-base font-black text-emerald-400 mt-0.5">{simReport.avg_packet_latency_ms}</div>
-                        </div>
-
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simDeflectionRate}</div>
-                          <div className="text-base font-black text-primary mt-0.5">{simReport.deflection_rate}</div>
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-[#070a12] rounded-lg border border-primary/20 font-mono text-xs text-muted-foreground">
-                        <span className="text-primary font-bold">Defense Reaction: </span>
-                        {simReport.mitigation_reason}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <SimulatorView
+              t={t}
+              simRunning={simRunning}
+              simVector={simVector}
+              setSimVector={setSimVector}
+              simIntensity={simIntensity}
+              setSimIntensity={setSimIntensity}
+              onStartSim={handleStartSim}
+              onStopSim={handleStopSim}
+              simPackets={simPackets}
+            />
           )}
 
-          {/* VIEW: CUSTOM WAF RULE BUILDER */}
-          {currentNav === "custom_waf" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" /> {t.customWafTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.customWafDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Add Rule Form */}
-                <form onSubmit={handleCreateCustomRule} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddRule}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div>
-                      <label htmlFor="custom-waf-name" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleNameLabel}
-                      </label>
-                      <Input
-                        id="custom-waf-name"
-                        placeholder="e.g. Block WP Scanners"
-                        value={ruleName}
-                        onChange={(e) => setRuleName(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
+          {currentNav === "logs" && <LogsView t={t} liveLogs={liveLogs} />}
 
-                    <div>
-                      <label htmlFor="custom-waf-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleFieldLabel}
-                      </label>
-                      <select
-                        id="custom-waf-field"
-                        value={ruleField}
-                        onChange={(e: any) => setRuleField(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="uri">{t.fieldUri}</option>
-                        <option value="user_agent">{t.fieldUserAgent}</option>
-                        <option value="query">{t.fieldQuery}</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label htmlFor="custom-waf-op" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleOperatorLabel}
-                      </label>
-                      <select
-                        id="custom-waf-op"
-                        value={ruleOp}
-                        onChange={(e: any) => setRuleOp(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="contains">{t.opContains}</option>
-                        <option value="equals">{t.opEquals}</option>
-                        <option value="regex">{t.opRegex}</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label htmlFor="custom-waf-action" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleActionLabel}
-                      </label>
-                      <select
-                        id="custom-waf-action"
-                        value={ruleAction}
-                        onChange={(e: any) => setRuleAction(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="DROP">{t.actDrop}</option>
-                        <option value="CHALLENGE">{t.actChallenge}</option>
-                        <option value="LOG">{t.actLog}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="custom-waf-val" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                      {t.ruleValueLabel}
-                    </label>
-                    <Input
-                      id="custom-waf-val"
-                      placeholder="e.g. /wp-login.php or python-requests"
-                      value={ruleVal}
-                      onChange={(e) => setRuleVal(e.target.value)}
-                      required
-                      className="text-xs font-mono"
-                    />
-                  </div>
-
-                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Deploy WAF rule">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddRule}
-                  </Button>
-                </form>
-
-                {/* Rules Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableRuleName}</th>
-                        <th className="py-3 px-4">{t.tableRuleCondition}</th>
-                        <th className="py-3 px-4">{t.tableRuleAction}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {customWafRules.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                            {t.noCustomRules}
-                          </td>
-                        </tr>
-                      ) : (
-                        customWafRules.map((rule) => (
-                          <tr key={rule.id} className="hover:bg-accent/40 transition">
-                            <td className="py-3 px-4 font-bold text-white">{rule.name}</td>
-                            <td className="py-3 px-4 font-mono text-muted-foreground">
-                              <span className="text-primary font-bold uppercase text-[10px] mr-1">{rule.field}</span>
-                              <span className="text-[10px] mr-1">({rule.operator})</span>
-                              <code className="text-sky-300 bg-black/40 px-1.5 py-0.5 rounded text-[11px]">{rule.value}</code>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={rule.action === "DROP" ? "destructive" : "default"} className="text-[10px]">
-                                {rule.action}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Delete rule ${rule.name}`}
-                                onClick={() => handleDeleteCustomRule(rule.id)}
-                                className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* VIEW: BACKEND UPSTREAM PROXIES */}
-          {currentNav === "upstreams" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Server className="w-4 h-4 text-primary" /> {t.upstreamTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.upstreamDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Add Upstream Form */}
-                <form onSubmit={handleAddUpstream} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddUpstream}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label htmlFor="ups-host-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamHostLabel}
-                      </label>
-                      <Input
-                        id="ups-host-input"
-                        placeholder="e.g. 192.168.1.100"
-                        value={newUpsHost}
-                        onChange={(e) => setNewUpsHost(e.target.value)}
-                        required
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="ups-port-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamPortLabel}
-                      </label>
-                      <Input
-                        id="ups-port-input"
-                        type="number"
-                        placeholder="80"
-                        value={newUpsPort}
-                        onChange={(e) => setNewUpsPort(e.target.value)}
-                        required
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="ups-protocol-select" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamProtocolLabel}
-                      </label>
-                      <select
-                        id="ups-protocol-select"
-                        value={newUpsProtocol}
-                        onChange={(e: any) => setNewUpsProtocol(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="http">HTTP</option>
-                        <option value="https">HTTPS</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="ups-weight-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamWeightLabel}
-                      </label>
-                      <Input
-                        id="ups-weight-input"
-                        type="number"
-                        placeholder="1"
-                        value={newUpsWeight}
-                        onChange={(e) => setNewUpsWeight(e.target.value)}
-                        className="text-xs"
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Add upstream server">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddUpstream}
-                  </Button>
-                </form>
-
-                {/* Upstream Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableTarget}</th>
-                        <th className="py-3 px-4">{t.tableHealth}</th>
-                        <th className="py-3 px-4">{t.tableWeight}</th>
-                        <th className="py-3 px-4">{t.tableLatency}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {upstreams.map((ups) => (
-                        <tr key={ups.id} className="hover:bg-accent/40 transition">
-                          <td className="py-3 px-4 font-mono font-bold text-white flex items-center gap-2">
-                            <Server className="w-3.5 h-3.5 text-primary" />
-                            <span>{ups.protocol}://{ups.host}:{ups.port}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="default" className="text-[10px]">
-                              {t.statusHealthy}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-muted-foreground">weight: {ups.weight}</td>
-                          <td className="py-3 px-4 font-mono text-emerald-400">{ups.latency_ms} ms</td>
-                          <td className="py-3 px-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              aria-label={`Delete upstream ${ups.host}`}
-                              onClick={() => handleDeleteUpstream(ups.id)}
-                              className="text-destructive hover:bg-destructive/10 text-xs h-7"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* VIEW: SSL & DOMAINS */}
-          {currentNav === "ssl" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" /> {t.sslTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.sslDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Register Domain Form */}
-                <form onSubmit={handleAddDomain} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddDomain}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="domain-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.domainNameLabel}
-                      </label>
-                      <Input
-                        id="domain-input"
-                        placeholder="e.g. defense.example.com"
-                        value={newDomain}
-                        onChange={(e) => setNewDomain(e.target.value)}
-                        required
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="issuer-select" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.sslIssuerLabel}
-                      </label>
-                      <select
-                        id="issuer-select"
-                        value={newIssuer}
-                        onChange={(e: any) => setNewIssuer(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="letsencrypt">{t.sslIssuerLetsEncrypt}</option>
-                        <option value="custom">{t.sslIssuerCustom}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Register domain">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddDomain}
-                  </Button>
-                </form>
-
-                {/* Domains List */}
-                <div className="space-y-3">
-                  {sslDomains.map((dom) => (
-                    <div
-                      key={dom.id}
-                      className="p-4 rounded-xl bg-secondary/20 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-primary" />
-                          <span className="font-mono font-bold text-white text-sm">{dom.domain}</span>
-                          <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400">
-                            SSL ACTIVE ({dom.days_remaining}d left)
-                          </Badge>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          Issuer: {dom.issuer === "letsencrypt" ? "Let's Encrypt Authority" : "Custom Certificate"}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="cyber"
-                          onClick={() => handleIssueLetsEncrypt(dom.domain)}
-                          className="text-[10px] h-7 px-2.5 font-bold gap-1"
-                          title="Trigger Zero-Touch Let's Encrypt HTTP-01 ACME Certificate Issuance"
-                        >
-                          <Lock className="w-3 h-3" /> Auto-Renew SSL
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={dom.force_https ? "cyber" : "outline"}
-                          onClick={() => handleToggleSslFlag(dom.id, "force_https")}
-                          className="text-[10px] h-7 px-2"
-                        >
-                          HTTPS Force: {dom.force_https ? "ON" : "OFF"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={dom.tls13_strict ? "cyber" : "outline"}
-                          onClick={() => handleToggleSslFlag(dom.id, "tls13_strict")}
-                          className="text-[10px] h-7 px-2"
-                        >
-                          TLS 1.3: {dom.tls13_strict ? "ON" : "OFF"}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteDomain(dom.id)}
-                          className="text-destructive hover:bg-destructive/10 h-7 w-7"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* VIEW: IP INTELLIGENCE LOOKUP */}
           {currentNav === "lookup" && (
-            <div className="space-y-6">
-              <Card className="border-primary/20 bg-card/85">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Fingerprint className="w-4 h-4 text-primary" /> {t.lookupTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.lookupDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <div className="flex gap-2 max-w-xl">
-                    <Input
-                      placeholder={t.searchIpPlaceholder}
-                      aria-label="Search IP Address"
-                      value={lookupTargetIp}
-                      onChange={(e) => setLookupTargetIp(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleExecuteLookup()}
-                      className="text-xs"
-                    />
-                    <Button
-                      variant="cyber"
-                      aria-label="Execute IP Lookup"
-                      onClick={() => handleExecuteLookup()}
-                      disabled={lookupLoading}
-                      className="gap-2 shrink-0 text-xs font-bold"
-                    >
-                      <Search className="w-3.5 h-3.5" />
-                      {lookupLoading ? "Investigating..." : t.btnLookup}
-                    </Button>
-                  </div>
-
-                  {/* Lookup Result Card */}
-                  {lookupResult && (
-                    <div className="mt-6 p-5 rounded-xl bg-[#090d16] border border-primary/30 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 border border-primary/30 rounded-xl">
-                            <Globe className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-mono font-bold text-white flex items-center gap-2">
-                              {lookupResult.ip}
-                              <Badge variant="outline" className="font-mono text-[10px] border-primary/30 text-primary">
-                                {lookupResult.geo.country}
-                              </Badge>
-                            </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {lookupResult.geo.city ? `${lookupResult.geo.city}, ` : ""}{lookupResult.geo.region || ""}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Defense Status Badges */}
-                        <div className="flex items-center gap-2">
-                          {lookupResult.defense_status.is_banned && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              BANNED ({lookupResult.defense_status.ban_ttl_seconds}s remaining)
-                            </Badge>
-                          )}
-                          {lookupResult.defense_status.is_whitelisted && (
-                            <Badge variant="default" className="text-[10px]">WHITELISTED</Badge>
-                          )}
-                          {lookupResult.defense_status.is_blacklisted && (
-                            <Badge variant="destructive" className="text-[10px]">BLACKLISTED</Badge>
-                          )}
-                          {!lookupResult.defense_status.is_banned &&
-                            !lookupResult.defense_status.is_whitelisted &&
-                            !lookupResult.defense_status.is_blacklisted && (
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
-                                CLEAN IP
-                              </Badge>
-                            )}
-                        </div>
-                      </div>
-
-                      {/* Detail Metrics */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-primary/10">
-                          <div className="text-muted-foreground text-[10px]">{t.asnOrg}</div>
-                          <div className="font-semibold text-white mt-0.5 truncate">{lookupResult.geo.org}</div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-primary/10">
-                          <div className="text-muted-foreground text-[10px]">Hosting Category</div>
-                          <div className="font-semibold mt-0.5">
-                            {lookupResult.geo.is_datacenter ? (
-                              <span className="text-amber-400 flex items-center gap-1">
-                                <AlertOctagon className="w-3.5 h-3.5" /> Datacenter / Cloud Botnet
-                              </span>
-                            ) : (
-                              <span className="text-primary flex items-center gap-1">
-                                <UserCheck className="w-3.5 h-3.5" /> Residential / Clean ISP
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-primary/10">
-                          <div className="text-muted-foreground text-[10px]">{t.strikeCount}</div>
-                          <div className="font-semibold text-white mt-0.5">
-                            {lookupResult.defense_status.strike_violations} / 5 strikes
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 1-Click Action Buttons */}
-                      <div className="pt-2 flex flex-wrap items-center gap-2">
-                        {lookupResult.defense_status.is_banned ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            aria-label={`Unban IP ${lookupResult.ip}`}
-                            onClick={() => handleUnban(lookupResult.ip)}
-                            className="text-xs border-primary/30 text-primary hover:bg-primary/20 gap-1.5"
-                          >
-                            <Unlock className="w-3.5 h-3.5" /> {t.btnUnban}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="cyber"
-                            aria-label={`Ban IP ${lookupResult.ip}`}
-                            onClick={() => {
-                              openConfirm({
-                                title: t.quickBanTitle,
-                                message: `${t.confirmBan} (${lookupResult.ip}) for 15m?`,
-                                variant: "danger",
-                                onConfirm: async () => {
-                                  await fetch("/api/bans", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ ip: lookupResult.ip, duration_sec: 900 }),
-                                  });
-                                  showToast(`IP ${lookupResult.ip} banned for 15m!`);
-                                  handleExecuteLookup(lookupResult.ip);
-                                },
-                              });
-                            }}
-                            className="text-xs gap-1.5"
-                          >
-                            <Lock className="w-3.5 h-3.5" /> {t.btnQuickBan}
-                          </Button>
-                        )}
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          aria-label={`Whitelist IP ${lookupResult.ip}`}
-                          onClick={() => {
-                            openConfirm({
-                              title: t.navWhitelist,
-                              message: `${lang === "id" ? "Tambahkan ke whitelist" : "Add to whitelist"}: ${lookupResult.ip}?`,
-                              variant: "primary",
-                              onConfirm: async () => {
-                                await fetch("/api/whitelist", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ ip: lookupResult.ip }),
-                                });
-                                showToast(`IP ${lookupResult.ip} whitelisted!`);
-                                handleExecuteLookup(lookupResult.ip);
-                              },
-                            });
-                          }}
-                          className="text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5" /> {t.btnQuickWhitelist}
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          aria-label={`Blacklist IP ${lookupResult.ip}`}
-                          onClick={() => {
-                            openConfirm({
-                              title: t.navBlacklist,
-                              message: `${lang === "id" ? "Blacklist permanen IP" : "Permanently blacklist IP"}: ${lookupResult.ip}?`,
-                              variant: "danger",
-                              onConfirm: async () => {
-                                await fetch("/api/blacklist", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ ip: lookupResult.ip }),
-                                });
-                                showToast(`IP ${lookupResult.ip} added to permanent blacklist!`);
-                                handleExecuteLookup(lookupResult.ip);
-                              },
-                            });
-                          }}
-                          className="text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
-                        >
-                          <Ban className="w-3.5 h-3.5" /> {t.btnQuickBlacklist}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <IpLookupView
+              t={t}
+              lookupTargetIp={lookupTargetIp}
+              setLookupTargetIp={setLookupTargetIp}
+              lookupLoading={lookupLoading}
+              lookupResult={lookupResult}
+              onExecuteLookup={handleExecuteLookup}
+              onQuickBan={(ip) => handleManualBan(ip, 600, "10-Min Quick Ban")}
+              onQuickUnban={handleUnban}
+              onAddBlacklist={handleAddBlacklist}
+            />
           )}
 
-          {/* VIEW: ADMIN USER MANAGEMENT */}
-          {currentNav === "users" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" /> {t.usersTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.usersDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Add User Form */}
-                <form onSubmit={handleAddUser} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddUser}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label htmlFor="new-admin-user" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.usernameLabel}
-                      </label>
-                      <Input
-                        id="new-admin-user"
-                        placeholder="e.g. security_lead"
-                        value={newUsername}
-                        onChange={(e) => setNewUsername(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="new-admin-pass" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.passwordLabel}
-                      </label>
-                      <Input
-                        id="new-admin-pass"
-                        type="password"
-                        placeholder="••••••••"
-                        value={newUserPassword}
-                        onChange={(e) => setNewUserPassword(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="new-admin-role" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.roleLabel}
-                      </label>
-                      <select
-                        id="new-admin-role"
-                        value={newUserRole}
-                        onChange={(e: any) => setNewUserRole(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/60 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="security_analyst">{t.roleAnalyst}</option>
-                        <option value="super_admin">{t.roleSuperAdmin}</option>
-                        <option value="auditor">{t.roleAuditor}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <Button type="submit" variant="cyber" className="text-xs gap-1.5 font-bold mt-2" aria-label="Add new admin user">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddUser}
-                  </Button>
-                </form>
-
-                {/* Users Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableUser}</th>
-                        <th className="py-3 px-4">{t.tableRole}</th>
-                        <th className="py-3 px-4">{t.tableCreated}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {adminUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-accent/40 transition">
-                          <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md bg-primary/10 border border-primary/30 flex items-center justify-center text-[10px] text-primary">
-                              {user.username.substring(0, 2).toUpperCase()}
-                            </div>
-                            <span>{user.username}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant={user.role === "super_admin" ? "default" : "outline"} className="text-[10px]">
-                              {user.role === "super_admin"
-                                ? "Super Admin"
-                                : user.role === "security_analyst"
-                                ? "Security Analyst"
-                                : "Auditor"}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            {user.username === "admin" ? (
-                              <span className="text-[10px] text-muted-foreground italic">Protected Root</span>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Delete user ${user.username}`}
-                                onClick={() => handleDeleteUser(user.username)}
-                                className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> {t.btnDeleteUser}
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* VIEW: SECURITY PROFILE & KEYS */}
-          {currentNav === "profile" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Profile Card & API Key */}
-              <Card className="border-primary/20 bg-card/85">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" /> {t.profileTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.profileDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5 space-y-4 text-xs">
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/30 border border-primary/20">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-                      <UserCheck className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-white text-sm">admin</div>
-                      <div className="text-muted-foreground text-[11px]">{t.roleSuperAdmin}</div>
-                      <Badge variant="default" className="text-[9px] mt-1">SESSION ACTIVE</Badge>
-                    </div>
-                  </div>
-
-                  {/* REST API Key */}
-                  <div className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-white text-xs flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-primary" /> {t.apiKeyTitle}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Toggle API Key visibility"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="h-6 w-6 text-muted-foreground hover:text-white"
-                      >
-                        {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        type={showApiKey ? "text" : "password"}
-                        value={profileApiKey}
-                        readOnly
-                        aria-label="API Key value"
-                        className="font-mono text-xs text-primary bg-[#070a12]"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Copy API Key to clipboard"
-                        onClick={() => {
-                          navigator.clipboard.writeText(profileApiKey);
-                          showToast("API Key copied to clipboard!");
-                        }}
-                        className="shrink-0 text-xs border-primary/30 text-primary gap-1"
-                      >
-                        <Copy className="w-3.5 h-3.5" /> Copy
-                      </Button>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label="Regenerate REST API Key"
-                      onClick={handleRegenerateApiKey}
-                      className="text-[11px] border-primary/30 text-muted-foreground hover:text-primary mt-1 gap-1.5"
-                    >
-                      <RefreshCw className="w-3 h-3" /> {t.btnRegenKey}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Change Password Form */}
-              <Card className="border-primary/20 bg-card/85">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-primary" /> {t.changePassTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">Update your administrator access credentials</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label htmlFor="new-admin-password-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.newPassLabel}
-                      </label>
-                      <Input
-                        id="new-admin-password-field"
-                        type="password"
-                        placeholder="••••••••"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="confirm-admin-password-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.confirmPassLabel}
-                      </label>
-                      <Input
-                        id="confirm-admin-password-field"
-                        type="password"
-                        placeholder="••••••••"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <Button type="submit" variant="cyber" className="w-full text-xs font-bold gap-2" aria-label="Save new administrator password">
-                      <Lock className="w-3.5 h-3.5" /> {t.btnSavePass}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* VIEW: IP QUARANTINE & BANS */}
           {currentNav === "bans" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-primary" /> {t.navBans}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.noActiveBans}</CardDescription>
-                </div>
-                <div className="relative w-64">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-muted-foreground" />
-                  <Input
-                    placeholder={t.searchOffender}
-                    aria-label="Search Quarantined IP"
-                    value={searchFilter}
-                    onChange={(e) => setSearchFilter(e.target.value)}
-                    className="pl-8 text-xs"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableOffenderIp}</th>
-                        <th className="py-3 px-4">{t.tableRemainingTtl}</th>
-                        <th className="py-3 px-4">{t.tableReason}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {filteredBans.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                            {t.noActiveBans}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredBans.map((ban) => (
-                          <tr key={ban.ip} className="hover:bg-accent/40 transition">
-                            <td className="py-3 px-4 font-mono font-bold text-primary">{ban.ip}</td>
-                            <td className="py-3 px-4">
-                              <Badge variant="outline" className="font-mono text-[11px] border-primary/30 text-primary bg-primary/5">
-                                {ban.remaining_ttl}s remaining
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground font-medium">{ban.reason}</td>
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                aria-label={`Unban IP ${ban.ip}`}
-                                onClick={() => handleUnban(ban.ip)}
-                                className="gap-1.5 text-[11px] h-7 border-primary/30 text-primary hover:bg-primary/20"
-                              >
-                                <Unlock className="w-3 h-3" /> {t.btnUnban}
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <BansView
+              t={t}
+              bans={bans}
+              onManualBan={handleManualBan}
+              onUnban={handleUnban}
+            />
           )}
 
-          {/* VIEW: WHITELIST */}
           {currentNav === "whitelist" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" /> {t.navWhitelist}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.statWhitelistSub}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={handleAddWhitelist} className="flex gap-2 max-w-lg">
-                  <Input
-                    placeholder={t.trustedIpPlaceholder}
-                    aria-label="Whitelist IP Address"
-                    value={whitelistIp}
-                    onChange={(e) => setWhitelistIp(e.target.value)}
-                    required
-                  />
-                  <Button type="submit" variant="cyber" aria-label="Add IP to Whitelist" className="gap-1.5 shrink-0 font-bold">
-                    <Plus className="w-4 h-4" /> {t.btnAddWhitelist}
-                  </Button>
-                </form>
-
-                <div className="divide-y divide-border/60 border border-border/60 rounded-xl overflow-hidden">
-                  {whitelist.length === 0 ? (
-                    <div className="py-6 text-center text-muted-foreground text-xs">
-                      {t.noWhitelist}
-                    </div>
-                  ) : (
-                    whitelist.map((ip) => (
-                      <div key={ip} className="flex items-center justify-between py-2.5 px-4 hover:bg-accent/30 transition">
-                        <span className="font-mono text-primary font-bold text-xs">{ip}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Remove IP ${ip} from whitelist`}
-                          onClick={() => handleRemoveWhitelist(ip)}
-                          className="text-muted-foreground hover:text-primary h-7 w-7"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <WhitelistView
+              t={t}
+              whitelist={whitelist}
+              onAddWhitelist={handleAddWhitelist}
+              onRemoveWhitelist={handleRemoveWhitelist}
+            />
           )}
 
-          {/* VIEW: BLACKLIST */}
           {currentNav === "blacklist" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Ban className="w-4 h-4 text-primary" /> {t.navBlacklist}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.statThreatsSub}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={handleAddBlacklist} className="flex gap-2 max-w-lg">
-                  <Input
-                    placeholder={t.maliciousIpPlaceholder}
-                    aria-label="Blacklist IP Address"
-                    value={blacklistIp}
-                    onChange={(e) => setBlacklistIp(e.target.value)}
-                    required
-                  />
-                  <Button type="submit" variant="cyber" aria-label="Add IP to Blacklist" className="gap-1.5 shrink-0 font-bold">
-                    <Plus className="w-4 h-4" /> {t.btnAddBlacklist}
-                  </Button>
-                </form>
-
-                <div className="divide-y divide-border/60 border border-border/60 rounded-xl overflow-hidden">
-                  {blacklist.length === 0 ? (
-                    <div className="py-6 text-center text-muted-foreground text-xs">
-                      {t.noBlacklist}
-                    </div>
-                  ) : (
-                    blacklist.map((ip) => (
-                      <div key={ip} className="flex items-center justify-between py-2.5 px-4 hover:bg-accent/30 transition">
-                        <span className="font-mono text-primary font-bold text-xs">{ip}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Remove IP ${ip} from blacklist`}
-                          onClick={() => handleRemoveBlacklist(ip)}
-                          className="text-muted-foreground hover:text-primary h-7 w-7"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <BlacklistView
+              t={t}
+              blacklist={blacklist}
+              onAddBlacklist={handleAddBlacklist}
+              onRemoveBlacklist={handleRemoveBlacklist}
+            />
           )}
 
-          {/* VIEW: GEOIP COUNTRIES */}
           {currentNav === "geoip" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-primary" /> {t.navGeoip}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.countryCodePlaceholder}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={handleAddCountry} className="flex gap-2 max-w-lg">
-                  <Input
-                    placeholder={t.countryCodePlaceholder}
-                    aria-label="Country ISO code to block"
-                    value={newCountryCode}
-                    onChange={(e) => setNewCountryCode(e.target.value.toUpperCase())}
-                    maxLength={2}
-                    required
-                  />
-                  <Button type="submit" variant="cyber" aria-label="Block country code" className="gap-1.5 shrink-0 font-bold">
-                    <Plus className="w-4 h-4" /> {t.btnBlockCountry}
-                  </Button>
-                </form>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 pt-2">
-                  {blockedCountries.map((code) => (
-                    <div
-                      key={code}
-                      className="p-3 bg-secondary/40 border border-primary/20 rounded-xl flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-primary" />
-                        <span className="font-mono font-bold text-white text-sm">{code}</span>
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Unblock country ${code}`}
-                        onClick={() => handleRemoveCountry(code)}
-                        className="text-muted-foreground hover:text-primary h-6 w-6"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <GeoIpView
+              t={t}
+              blockedCountries={blockedCountries}
+              onAddCountry={handleAddCountry}
+              onRemoveCountry={handleRemoveCountry}
+            />
           )}
 
-          {/* VIEW: WAF SIGNATURES */}
-          {currentNav === "waf" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-primary" /> {t.wafTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.wafDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.sqliTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">UNION SELECT, OR 1=1, sys.tables, sleep()</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.xssTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">&lt;script&gt;, javascript:, onerror=, document.cookie</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.scannersTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">sqlmap, nikto, dirbuster, masscan, nmap, zgrab</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.rceTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">eval(), system(), exec(), base64_decode, /bin/sh</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between md:col-span-2">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.slowlorisTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">Multi-part HTTP Range headers (bytes=0-,5-0,5-1...)</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {currentNav === "custom_waf" && (
+            <CustomWafView
+              t={t}
+              customWafRules={customWafRules}
+              onAddRule={handleAddWafRule}
+              onDeleteRule={handleDeleteWafRule}
+            />
           )}
 
-          {/* VIEW: RATE LIMIT SCALER */}
-          {currentNav === "ratelimits" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Gauge className="w-4 h-4 text-primary" /> {t.rateLimitTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.rateLimitDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4 max-w-2xl">
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="ratelimit-general-input" className="text-xs font-semibold text-white block mb-1">
-                      {t.perIpLimit}: <span className="font-mono text-primary font-bold">{rateLimitGeneral} req/sec</span>
-                    </label>
-                    <Input
-                      id="ratelimit-general-input"
-                      type="number"
-                      value={rateLimitGeneral}
-                      onChange={(e) => setRateLimitGeneral(e.target.value)}
-                      className="text-xs max-w-xs"
-                    />
-                  </div>
+          {currentNav === "waf" && <WafSignaturesView t={t} />}
+          {currentNav === "ratelimits" && <RateLimitsView t={t} />}
 
-                  <div>
-                    <label htmlFor="ratelimit-burst-input" className="text-xs font-semibold text-white block mb-1">
-                      {t.maxBurstBucket}: <span className="font-mono text-primary font-bold">{rateLimitBurst} tokens</span>
-                    </label>
-                    <Input
-                      id="ratelimit-burst-input"
-                      type="number"
-                      value={rateLimitBurst}
-                      onChange={(e) => setRateLimitBurst(e.target.value)}
-                      className="text-xs max-w-xs"
-                    />
-                  </div>
-
-                  <Button
-                    variant="cyber"
-                    aria-label="Save Rate Limit policies"
-                    onClick={() => {
-                      openConfirm({
-                        title: t.rateLimitTitle,
-                        message: `${lang === "id" ? "Simpan kebijakan batas kecepatan" : "Update rate limit policy"}: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})?`,
-                        variant: "warning",
-                        onConfirm: () => {
-                          showToast(`Rate Limit policy updated: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})`);
-                        },
-                      });
-                    }}
-                    className="gap-2 text-xs font-bold mt-2"
-                  >
-                    <Sliders className="w-3.5 h-3.5" /> {t.btnSaveRateLimit}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {currentNav === "upstreams" && (
+            <UpstreamsView
+              t={t}
+              upstreams={upstreams}
+              onAddUpstream={handleAddUpstream}
+              onDeleteUpstream={handleDeleteUpstream}
+            />
           )}
 
-          {/* VIEW: ATTACK LOGS */}
-          {currentNav === "logs" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <RadioTower className="w-4 h-4 text-primary" /> {t.navAttackLogs}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.noThreatsRecorded}</CardDescription>
-                </div>
-                <Button size="sm" variant="outline" aria-label="Export audit logs to JSON" onClick={exportLogsAsJson} className="gap-1.5 text-xs text-primary border-primary/30">
-                  <Download className="w-3.5 h-3.5" /> {t.btnExportJson}
-                </Button>
-              </CardHeader>
-              <CardContent className="p-4 space-y-2 font-mono text-xs">
-                {liveLogs.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-                    <RadioTower className="w-6 h-6 text-primary animate-pulse" />
-                    <span>{t.noThreatsRecorded}</span>
-                  </div>
-                ) : (
-                  liveLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-card/40 border border-primary/10 gap-2 hover:bg-accent/20 transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground text-[10px]">
-                          {log.time_formatted || new Date(log.time * 1000).toLocaleTimeString()}
-                        </span>
-                        <Badge variant="default" className="text-[9px]">
-                          {log.event}
-                        </Badge>
-                        <span className="font-bold text-white">{log.client_ip}</span>
-                      </div>
-                      <span className="text-muted-foreground text-[11px] truncate max-w-md">
-                        {log.reason} {log.uri ? `(${log.uri})` : ""}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+          {currentNav === "ssl" && (
+            <SslView
+              t={t}
+              sslDomains={sslDomains}
+              onAddDomain={handleAddDomain}
+              onDeleteDomain={handleDeleteDomain}
+              onToggleSslFlag={handleToggleSslFlag}
+              onIssueLetsEncrypt={handleIssueLetsEncrypt}
+            />
           )}
 
-          {/* VIEW: MAINTENANCE CONTROLS */}
+          {currentNav === "users" && (
+            <UsersView
+              t={t}
+              adminUsers={adminUsers}
+              onAddUser={handleAddUser}
+              onDeleteUser={handleDeleteUser}
+            />
+          )}
+
+          {currentNav === "profile" && (
+            <ProfileView
+              t={t}
+              profileData={profileData}
+              onRegenApiKey={handleRegenApiKey}
+            />
+          )}
+
           {currentNav === "maintenance" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-primary" /> {t.maintTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.maintDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Card className="border-primary/20 bg-secondary/30 p-4">
-                    <h4 className="font-bold text-white text-xs mb-1">{t.maintClearViolations}</h4>
-                    <p className="text-[11px] text-muted-foreground mb-3">{t.maintClearViolationsDesc}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Flush violations cache"
-                      onClick={() => handleGatewayAction("flush_violations", t.btnClearViolations)}
-                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" /> {t.btnClearViolations}
-                    </Button>
-                  </Card>
-
-                  <Card className="border-primary/20 bg-secondary/30 p-4">
-                    <h4 className="font-bold text-white text-xs mb-1">{t.maintResetThreats}</h4>
-                    <p className="text-[11px] text-muted-foreground mb-3">{t.maintResetThreatsDesc}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Reset global threat counter"
-                      onClick={() => handleGatewayAction("reset_threat_counter", t.btnResetThreats)}
-                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> {t.btnResetThreats}
-                    </Button>
-                  </Card>
-
-                  <Card className="border-primary/20 bg-secondary/30 p-4">
-                    <h4 className="font-bold text-white text-xs mb-1">{t.maintPurgeLogs}</h4>
-                    <p className="text-[11px] text-muted-foreground mb-3">{t.maintPurgeLogsDesc}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Purge real-time attack logs"
-                      onClick={() => handleGatewayAction("clear_logs", t.btnPurgeLogs)}
-                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> {t.btnPurgeLogs}
-                    </Button>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
+            <MaintenanceView
+              t={t}
+              onFlushState={handleFlushState}
+              onToggleUnderAttack={handleToggleUnderAttack}
+              underAttackMode={stats.surge_mode}
+            />
           )}
-        </main>
-      </div>
-
-      {/* Terminus Healthcheck Inspector Dialog */}
-      {showHealthModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <Card className="max-w-lg w-full border-primary/30 shadow-2xl animate-in fade-in zoom-in-95 duration-200 bg-[#0b101c]">
-            <CardHeader className="border-b border-border/80 pb-3 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Server className="w-5 h-5 text-primary" />
-                <div>
-                  <CardTitle className="text-sm">{t.diagTitle}</CardTitle>
-                  <CardDescription className="text-[11px]">{t.diagDesc}</CardDescription>
-                </div>
-              </div>
-              <Button size="icon" variant="ghost" aria-label="Close diagnostics dialog" onClick={() => setShowHealthModal(false)} className="h-7 w-7">
-                ✕
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3 p-5 text-xs">
-              {/* Redis Indicator */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <HardDrive className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.redisHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      Ping Latency: {health?.info?.redis?.latency_ms ?? 0} ms
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="default">
-                  {health?.info?.redis?.status?.toUpperCase() || "UP"}
-                </Badge>
-              </div>
-
-              {/* Memory Heap Indicator */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Cpu className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.memoryHeapHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      Heap Used: {health?.info?.memory_heap?.used_mb} MB / Alloc: {health?.info?.memory_heap?.allocated_mb} MB
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="default">
-                  {health?.info?.memory_heap?.status?.toUpperCase() || "UP"}
-                </Badge>
-              </div>
-
-              {/* Memory RSS Indicator */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Activity className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.processRssHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      Resident Size: {health?.info?.memory_rss?.used_mb} MB
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="default">UP</Badge>
-              </div>
-
-              {/* Gateway Socket Check */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Network className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.gatewaySocketHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">Socket Status: /healthz</div>
-                  </div>
-                </div>
-                <Badge variant="default">
-                  {health?.info?.gateway?.status?.toUpperCase() || "UP"}
-                </Badge>
-              </div>
-            </CardContent>
-            <div className="p-4 border-t border-border/80 flex justify-end">
-              <Button variant="secondary" size="sm" aria-label="Close diagnostics inspector" onClick={() => setShowHealthModal(false)}>
-                {t.btnCloseDiag}
-              </Button>
-            </div>
-          </Card>
         </div>
-      )}
+      </main>
     </div>
   );
 }
