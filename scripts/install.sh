@@ -38,7 +38,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-INSTALL_DIR="/opt/antiddos"
+INSTALL_DIR="/opt/fluxwall-antiddos"
 
 # 2. Check & Install Dependencies (curl, git)
 echo -e "${YELLOW}[1/6] Memeriksa dependensi sistem...${NC}"

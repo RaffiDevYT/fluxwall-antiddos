@@ -35,7 +35,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-INSTALL_DIR="/opt/antiddos"
+INSTALL_DIR="/opt/fluxwall-antiddos"
 
 echo -e "${YELLOW}${BOLD}PERINGATAN:${NC} Tindakan ini akan menghentikan seluruh layanan FluxWall Gateway"
 echo -e "dan menghapus container serta file konfigurasinya dari sistem Anda.\n"
@@ -51,7 +51,7 @@ if [ -d "$INSTALL_DIR" ]; then
     cd "$INSTALL_DIR"
     docker compose down --remove-orphans -v 2>/dev/null || true
 elif command -v docker &> /dev/null; then
-    docker rm -f antiddos_gateway antiddos_redis antiddos_backend 2>/dev/null || true
+    docker rm -f fluxwall_gateway fluxwall_redis fluxwall_backend 2>/dev/null || true
 fi
 echo -e "${GREEN}  ✓ Container berhasil dihentikan dan dihapus.${NC}"
 

@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: antiddos_gateway
+    container_name: fluxwall_gateway
     ports:
       - "8080:80"
     environment:
@@ -22,25 +22,25 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - antiddos_net
+      - fluxwall_net
 
   # 2. Redis In-Memory State & Rate Limiting Backend
   redis:
     image: redis:7-alpine
-    container_name: antiddos_redis
+    container_name: fluxwall_redis
     ports:
       - "6379:6379"
     command: redis-server --save "" --appendonly no
     restart: unless-stopped
     networks:
-      - antiddos_net
+      - fluxwall_net
 
   # 3. Next.js Cyber Defense Admin Dashboard (with Terminus Health Indicator)
   dashboard:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
-    container_name: antiddos_dashboard
+    container_name: fluxwall_dashboard
     restart: unless-stopped
     environment:
       - REDIS_HOST=redis
@@ -50,20 +50,20 @@ services:
     depends_on:
       - redis
     networks:
-      - antiddos_net
+      - fluxwall_net
 
   # 3. Upstream Mock Backend Server (Node.js)
   backend:
     image: node:20-alpine
-    container_name: antiddos_backend
+    container_name: fluxwall_backend
     working_dir: /app
     volumes:
       - ./docker/backend:/app:ro
     command: node server.js
     restart: unless-stopped
     networks:
-      - antiddos_net
+      - fluxwall_net
 
 networks:
-  antiddos_net:
+  fluxwall_net:
     driver: bridge

@@ -48,19 +48,19 @@ case "$CMD" in
         echo -e "${CYAN}=== Status Container FluxWall ===${NC}"
         docker compose ps
         echo -e "\n${CYAN}=== Statistik Gateway Real-Time ===${NC}"
-        docker exec -it antiddos_redis redis-cli -c "KEYS" "ip:ban:*" 2>/dev/null | wc -l | awk '{print "Active Temporary Bans: "$1}'
-        docker exec -it antiddos_redis redis-cli SCARD ip:whitelist 2>/dev/null | awk '{print "Whitelisted IPs: "$1}'
-        docker exec -it antiddos_redis redis-cli SCARD ip:blacklist 2>/dev/null | awk '{print "Permanent Blacklisted IPs: "$1}'
+        docker exec -it fluxwall_redis redis-cli -c "KEYS" "ip:ban:*" 2>/dev/null | wc -l | awk '{print "Active Temporary Bans: "$1}'
+        docker exec -it fluxwall_redis redis-cli SCARD ip:whitelist 2>/dev/null | awk '{print "Whitelisted IPs: "$1}'
+        docker exec -it fluxwall_redis redis-cli SCARD ip:blacklist 2>/dev/null | awk '{print "Permanent Blacklisted IPs: "$1}'
         ;;
 
     logs)
         echo -e "${CYAN}=== Streaming Live Security Logs (Ctrl+C untuk keluar) ===${NC}"
-        docker logs -f antiddos_gateway
+        docker logs -f fluxwall_gateway
         ;;
 
     reload)
         echo -e "${YELLOW}Mereload konfigurasi Nginx/Lua...${NC}"
-        docker exec antiddos_gateway openresty -s reload
+        docker exec fluxwall_gateway openresty -s reload
         echo -e "${GREEN}✓ Konfigurasi berhasil dimuat ulang!${NC}"
         ;;
 
@@ -86,7 +86,7 @@ case "$CMD" in
             echo -e "${RED}Error: Masukkan IP address. Contoh: fluxwall ban 192.168.1.50 600${NC}"
             exit 1
         fi
-        docker exec antiddos_redis redis-cli SETEX "ip:ban:$IP" "$TTL" "$REASON" > /dev/null
+        docker exec fluxwall_redis redis-cli SETEX "ip:ban:$IP" "$TTL" "$REASON" > /dev/null
         echo -e "${GREEN}✓ IP $IP berhasil di-ban selama ${TTL} detik (Alasan: $REASON)${NC}"
         ;;
 
@@ -96,7 +96,7 @@ case "$CMD" in
             echo -e "${RED}Error: Masukkan IP address. Contoh: fluxwall unban 192.168.1.50${NC}"
             exit 1
         fi
-        docker exec antiddos_redis redis-cli DEL "ip:ban:$IP" "ip:violations:$IP" > /dev/null
+        docker exec fluxwall_redis redis-cli DEL "ip:ban:$IP" "ip:violations:$IP" > /dev/null
         echo -e "${GREEN}✓ IP $IP berhasil di-unban!${NC}"
         ;;
 
@@ -106,7 +106,7 @@ case "$CMD" in
             echo -e "${RED}Error: Masukkan IP address. Contoh: fluxwall whitelist 203.0.113.10${NC}"
             exit 1
         fi
-        docker exec antiddos_redis redis-cli SADD ip:whitelist "$IP" > /dev/null
+        docker exec fluxwall_redis redis-cli SADD ip:whitelist "$IP" > /dev/null
         echo -e "${GREEN}✓ IP $IP berhasil ditambahkan ke Whitelist!${NC}"
         ;;
 
@@ -116,7 +116,7 @@ case "$CMD" in
             echo -e "${RED}Error: Masukkan IP address. Contoh: fluxwall unwhitelist 203.0.113.10${NC}"
             exit 1
         fi
-        docker exec antiddos_redis redis-cli SREM ip:whitelist "$IP" > /dev/null
+        docker exec fluxwall_redis redis-cli SREM ip:whitelist "$IP" > /dev/null
         echo -e "${GREEN}✓ IP $IP berhasil dihapus dari Whitelist!${NC}"
         ;;
 
@@ -126,7 +126,7 @@ case "$CMD" in
             echo -e "${RED}Error: Masukkan IP address. Contoh: fluxwall blacklist 198.51.100.22${NC}"
             exit 1
         fi
-        docker exec antiddos_redis redis-cli SADD ip:blacklist "$IP" > /dev/null
+        docker exec fluxwall_redis redis-cli SADD ip:blacklist "$IP" > /dev/null
         echo -e "${GREEN}✓ IP $IP berhasil dimasukkan ke Blacklist Permanen!${NC}"
         ;;
 
@@ -136,7 +136,7 @@ case "$CMD" in
             echo -e "${RED}Error: Masukkan IP address. Contoh: fluxwall unblacklist 198.51.100.22${NC}"
             exit 1
         fi
-        docker exec antiddos_redis redis-cli SREM ip:blacklist "$IP" > /dev/null
+        docker exec fluxwall_redis redis-cli SREM ip:blacklist "$IP" > /dev/null
         echo -e "${GREEN}✓ IP $IP berhasil dihapus dari Blacklist Permanen!${NC}"
         ;;
 

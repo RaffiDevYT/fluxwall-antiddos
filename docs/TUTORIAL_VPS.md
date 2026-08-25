@@ -95,14 +95,14 @@ docker compose version
 ### Langkah 4.3: Clone Repository ke VPS
 Jalankan perintah clone langsung di terminal VPS Anda:
 ```bash
-git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git /opt/antiddos
+git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git /opt/fluxwall-antiddos
 ```
 
 ### Langkah 4.4: Sesuaikan File Konfigurasi Produksi
 
 Masuk ke folder proyek di VPS:
 ```bash
-cd /opt/antiddos
+cd /opt/fluxwall-antiddos
 ```
 
 Buka dan sesuaikan `docker-compose.yml`:
@@ -119,7 +119,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: antiddos_gateway
+    container_name: fluxwall_gateway
     ports:
       - "80:80"
       - "443:443"
@@ -137,18 +137,18 @@ services:
       - redis
     restart: always
     networks:
-      - antiddos_net
+      - fluxwall_net
 
   redis:
     image: redis:7-alpine
-    container_name: antiddos_redis
+    container_name: fluxwall_redis
     command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
     restart: always
     networks:
-      - antiddos_net
+      - fluxwall_net
 
 networks:
-  antiddos_net:
+  fluxwall_net:
     driver: bridge
 ```
 
@@ -187,10 +187,10 @@ mkdir -p /usr/local/openresty/nginx/lua
 mkdir -p /usr/local/openresty/nginx/admin
 mkdir -p /usr/local/openresty/nginx/conf
 
-cp -r /opt/antiddos/lua/* /usr/local/openresty/nginx/lua/
-cp -r /opt/antiddos/admin/* /usr/local/openresty/nginx/admin/
-cp /opt/antiddos/conf/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
-cp /opt/antiddos/conf/mime.types /usr/local/openresty/nginx/conf/mime.types
+cp -r /opt/fluxwall-antiddos/lua/* /usr/local/openresty/nginx/lua/
+cp -r /opt/fluxwall-antiddos/admin/* /usr/local/openresty/nginx/admin/
+cp /opt/fluxwall-antiddos/conf/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+cp /opt/fluxwall-antiddos/conf/mime.types /usr/local/openresty/nginx/conf/mime.types
 ```
 
 ### Langkah 5.3: Jalankan OpenResty
@@ -206,7 +206,7 @@ systemctl enable openresty
 
 Edit file `conf/nginx.conf`:
 ```bash
-nano /opt/antiddos/conf/nginx.conf
+nano /opt/fluxwall-antiddos/conf/nginx.conf
 ```
 
 Cari blok `upstream backend_servers`:
@@ -219,7 +219,7 @@ upstream backend_servers {
 
 Reload Nginx tanpa downtime:
 ```bash
-docker exec antiddos_gateway openresty -s reload
+docker exec fluxwall_gateway openresty -s reload
 ```
 
 ---
@@ -228,7 +228,7 @@ docker exec antiddos_gateway openresty -s reload
 
 ```bash
 apt install -y certbot
-docker stop antiddos_gateway
+docker stop fluxwall_gateway
 certbot certonly --standalone -d domainanda.com -d www.domainanda.com
 docker compose up -d
 ```

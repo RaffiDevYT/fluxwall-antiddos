@@ -80,16 +80,16 @@ jobs:
           # 2. Build .deb Package (Debian / Ubuntu)
           DEB_DIR="/tmp/fluxwall-deb"
           mkdir -p "$DEB_DIR/DEBIAN"
-          mkdir -p "$DEB_DIR/opt/antiddos"
+          mkdir -p "$DEB_DIR/opt/fluxwall-antiddos"
           mkdir -p "$DEB_DIR/usr/local/bin"
 
-          # Copy project files into /opt/antiddos
-          cp -r bin conf dashboard docker docs lua scripts test Dockerfile docker-compose.yml install.sh uninstall.sh LICENSE README.md "$DEB_DIR/opt/antiddos/"
-          chmod +x "$DEB_DIR/opt/antiddos/bin/fluxwall.sh"
-          chmod +x "$DEB_DIR/opt/antiddos/scripts/"*.sh
+          # Copy project files into /opt/fluxwall-antiddos
+          cp -r bin conf dashboard docker docs lua scripts test Dockerfile docker-compose.yml install.sh uninstall.sh LICENSE README.md "$DEB_DIR/opt/fluxwall-antiddos/"
+          chmod +x "$DEB_DIR/opt/fluxwall-antiddos/bin/fluxwall.sh"
+          chmod +x "$DEB_DIR/opt/fluxwall-antiddos/scripts/"*.sh
 
           # Create CLI symlink
-          ln -sf /opt/antiddos/bin/fluxwall.sh "$DEB_DIR/usr/local/bin/fluxwall"
+          ln -sf /opt/fluxwall-antiddos/bin/fluxwall.sh "$DEB_DIR/usr/local/bin/fluxwall"
 
           # Create Debian Control File
           cat << EOF > "$DEB_DIR/DEBIAN/control"
@@ -107,10 +107,10 @@ jobs:
           # Create Debian Post-Install Hook
           cat << 'EOF' > "$DEB_DIR/DEBIAN/postinst"
           #!/bin/sh
-          chmod +x /opt/antiddos/bin/fluxwall.sh
-          chmod +x /opt/antiddos/scripts/*.sh
-          ln -sf /opt/antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
-          echo "FluxWall installed successfully in /opt/antiddos. Type 'fluxwall' to manage."
+          chmod +x /opt/fluxwall-antiddos/bin/fluxwall.sh
+          chmod +x /opt/fluxwall-antiddos/scripts/*.sh
+          ln -sf /opt/fluxwall-antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
+          echo "FluxWall installed successfully in /opt/fluxwall-antiddos. Type 'fluxwall' to manage."
           exit 0
           EOF
           chmod 755 "$DEB_DIR/DEBIAN/postinst"
