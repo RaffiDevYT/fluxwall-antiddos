@@ -38,6 +38,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ForensicIncident, CanaryDecoyTrap } from "@/lib/packet-store";
 import ConfirmDialog from "@/components/confirm-dialog";
+import { exportIncidentsToCsv, exportIncidentsToPdf } from "@/lib/export-reports";
+import { FileText, Download } from "lucide-react";
 
 interface IncidentForensicsProps {
   onInvestigateIp?: (ip: string) => void;
@@ -271,7 +273,27 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportIncidentsToCsv(incidents)}
+              disabled={incidents.length === 0}
+              className="text-[11px] font-bold gap-1.5 h-7 px-2.5 border-primary/30 text-sky-300 hover:bg-primary/10"
+              title="Download Incident Records as CSV"
+            >
+              <Download className="w-3 h-3" /> CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportIncidentsToPdf(incidents)}
+              disabled={incidents.length === 0}
+              className="text-[11px] font-bold gap-1.5 h-7 px-2.5 border-primary/30 text-sky-300 hover:bg-primary/10"
+              title="Print or Export Executive PDF Audit Dossier"
+            >
+              <FileText className="w-3 h-3" /> PDF Report
+            </Button>
             <Button
               size="sm"
               variant="cyber"

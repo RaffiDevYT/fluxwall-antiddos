@@ -710,6 +710,26 @@ export default function EnterpriseAdminDashboard() {
     }
   };
 
+    const handleIssueLetsEncrypt = async (domainName: string) => {
+    try {
+      showToast(`Initiating Zero-Touch Let's Encrypt ACME verification for ${domainName}...`);
+      const res = await fetch("/api/ssl/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domainName }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        showToast(`Let's Encrypt SSL Certificate successfully provisioned for ${domainName}!`);
+        fetchSslDomains();
+      } else {
+        showToast(data.error || "Failed to provision Let's Encrypt SSL");
+      }
+    } catch {
+      showToast("Network error provisioning SSL");
+    }
+  };
+
   const handleToggleSslFlag = (id: string, flag: "force_https" | "hsts" | "tls13_strict") => {
     openConfirm({
       title: t.sslTitle,
@@ -2306,6 +2326,15 @@ export default function EnterpriseAdminDashboard() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="cyber"
+                          onClick={() => handleIssueLetsEncrypt(dom.domain)}
+                          className="text-[10px] h-7 px-2.5 font-bold gap-1"
+                          title="Trigger Zero-Touch Let's Encrypt HTTP-01 ACME Certificate Issuance"
+                        >
+                          <Lock className="w-3 h-3" /> Auto-Renew SSL
+                        </Button>
                         <Button
                           size="sm"
                           variant={dom.force_https ? "cyber" : "outline"}

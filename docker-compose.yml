@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   # 1. OpenResty Anti-DDoS Edge Gateway
@@ -9,6 +9,7 @@ services:
     container_name: fluxwall_gateway
     ports:
       - "8080:80"
+      - "8443:443"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -17,6 +18,8 @@ services:
     volumes:
       - ./conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - ./lua:/usr/local/openresty/nginx/lua:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_certs:/etc/letsencrypt:ro
     depends_on:
       - redis
       - backend
@@ -35,7 +38,7 @@ services:
     networks:
       - fluxwall_net
 
-  # 3. Next.js Cyber Defense Admin Dashboard (with Terminus Health Indicator)
+  # 3. Next.js Cyber Defense Admin Dashboard
   dashboard:
     build:
       context: ./dashboard
@@ -52,7 +55,7 @@ services:
     networks:
       - fluxwall_net
 
-  # 3. Upstream Mock Backend Server (Node.js)
+  # 4. Upstream Mock Backend Server (Node.js)
   backend:
     image: node:20-alpine
     container_name: fluxwall_backend
@@ -63,6 +66,22 @@ services:
     restart: unless-stopped
     networks:
       - fluxwall_net
+
+  # 5. Let's Encrypt Certbot Automated Zero-Touch ACME Provisioner
+  certbot:
+    image: certbot/certbot:latest
+    container_name: fluxwall_certbot
+    volumes:
+      - certbot_www:/var/www/certbot:rw
+      - certbot_certs:/etc/letsencrypt:rw
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+    networks:
+      - fluxwall_net
+
+volumes:
+  certbot_www:
+  certbot_certs:
 
 networks:
   fluxwall_net:
