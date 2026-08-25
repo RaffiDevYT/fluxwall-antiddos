@@ -1802,6 +1802,19 @@ export default function EnterpriseAdminDashboard() {
             </div>
           )}
 
+                    {/* VIEW: INCIDENT FORENSICS & CANARY DECOY TRAPS */}
+          {currentNav === "forensics" && (
+            <div className="space-y-6">
+              <IncidentForensics
+                onInvestigateIp={(ip) => {
+                  setLookupTargetIp(ip);
+                  setCurrentNav("lookup");
+                  handleExecuteLookup(ip);
+                }}
+              />
+            </div>
+          )}
+
           {/* VIEW: CYBER THREAT MAP */}
           {currentNav === "threat_map" && (
             <div className="space-y-6">
