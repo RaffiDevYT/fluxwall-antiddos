@@ -33,24 +33,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Gateway Image
+      - name: Build Docker Gateway Image
         run: |
-          docker compose build gateway
+          docker compose build
 
       - name: Boot Stack & Healthcheck Verification
         run: |
-          docker compose up -d gateway redis backend
-          for i in $(seq 1 20); do
-            echo "Checking gateway health attempt $i/20..."
-            if curl -sf http://127.0.0.1:8080/healthz | grep -q "fluxwall-antiddos"; then
-              echo "Gateway Healthcheck PASSED!"
-              break
-            fi
-            sleep 2
-          done
+          docker compose up -d
+          sleep 5
+          curl -s http://127.0.0.1:8080/healthz | grep -q "fluxwall-antiddos" && echo "Healthcheck PASSED!"
           docker compose down
 
-  # 2. Automated Multi-Package Builder & Dynamic Release (DEB, RPM, TAR.GZ)
+  # 2. Automated Multi-Package Builder & Release (DEB, RPM, TAR.GZ)
   package:
     name: Build Packages (DEB, RPM, TAR.GZ)
     needs: test
@@ -61,13 +55,11 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Packaging Tools (dpkg, rpm, alien)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm alien
+          sudo apt update
+          sudo apt install -y rpm alien
 
       - name: Build Packages
         run: |
@@ -101,26 +93,26 @@ jobs:
 
           # Create Debian Control File
           cat << EOF > "$DEB_DIR/DEBIAN/control"
-Package: fluxwall
-Version: ${VERSION}
-Section: net
-Priority: optional
-Architecture: all
-Maintainer: RaffiDevYT <https://github.com/RaffiDevYT>
-Description: High-Performance Layer-7 Anti-DDoS & Rate Limiting Gateway
- FluxWall is a modern edge security reverse proxy gateway built on OpenResty
- (Nginx + LuaJIT) and Redis with Adaptive Surge Protection and JS PoW Challenge.
-EOF
+          Package: fluxwall
+          Version: ${VERSION}
+          Section: net
+          Priority: optional
+          Architecture: all
+          Maintainer: RaffiDevYT <https://github.com/RaffiDevYT>
+          Description: High-Performance Layer-7 Anti-DDoS & Rate Limiting Gateway
+           FluxWall is a modern edge security reverse proxy gateway built on OpenResty
+           (Nginx + LuaJIT) and Redis with Adaptive Surge Protection and JS PoW Challenge.
+          EOF
 
           # Create Debian Post-Install Hook
           cat << 'EOF' > "$DEB_DIR/DEBIAN/postinst"
-#!/bin/sh
-chmod +x /opt/fluxwall-antiddos/bin/fluxwall.sh
-chmod +x /opt/fluxwall-antiddos/scripts/*.sh
-ln -sf /opt/fluxwall-antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
-echo "FluxWall installed successfully in /opt/fluxwall-antiddos. Type 'fluxwall' to manage."
-exit 0
-EOF
+          #!/bin/sh
+          chmod +x /opt/fluxwall-antiddos/bin/fluxwall.sh
+          chmod +x /opt/fluxwall-antiddos/scripts/*.sh
+          ln -sf /opt/fluxwall-antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
+          echo "FluxWall installed successfully in /opt/fluxwall-antiddos. Type 'fluxwall' to manage."
+          exit 0
+          EOF
           chmod 755 "$DEB_DIR/DEBIAN/postinst"
 
           # Build .deb
@@ -140,11 +132,9 @@ EOF
           name: fluxwall-packages
           path: dist/*
 
-      - name: Publish GitHub Release with Dynamic Release Notes
+      - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             dist/*
