@@ -57,6 +57,10 @@ declare global {
   var fluxwallForensicsBuffer: ForensicIncident[] | undefined;
   // eslint-disable-next-line no-var
   var fluxwallCanaryTrapsBuffer: CanaryDecoyTrap[] | undefined;
+  // eslint-disable-next-line no-var
+  var fluxwallBlacklistSet: Set<string> | undefined;
+  // eslint-disable-next-line no-var
+  var fluxwallWhitelistSet: Set<string> | undefined;
 }
 
 if (!global.fluxwallPacketBuffer) {
@@ -69,6 +73,14 @@ if (!global.fluxwallLogBuffer) {
 
 if (!global.fluxwallForensicsBuffer) {
   global.fluxwallForensicsBuffer = [];
+}
+
+if (!global.fluxwallBlacklistSet) {
+  global.fluxwallBlacklistSet = new Set<string>();
+}
+
+if (!global.fluxwallWhitelistSet) {
+  global.fluxwallWhitelistSet = new Set<string>();
 }
 
 if (!global.fluxwallCanaryTrapsBuffer) {
@@ -247,4 +259,64 @@ export async function saveCanaryTraps(traps: CanaryDecoyTrap[]) {
     const redis = getRedisClient();
     await redis.set("waf:canary_traps", JSON.stringify(traps));
   } catch {}
+}
+
+export async function addBlacklistIp(ip: string) {
+  global.fluxwallBlacklistSet!.add(ip);
+  try {
+    const redis = getRedisClient();
+    await redis.sadd("ip:blacklist", ip);
+    await redis.set(`blacklist:${ip}`, "PERMANENT_BLACKLIST");
+  } catch {}
+}
+
+export async function removeBlacklistIp(ip: string) {
+  global.fluxwallBlacklistSet!.delete(ip);
+  try {
+    const redis = getRedisClient();
+    await redis.srem("ip:blacklist", ip);
+    await redis.del(`blacklist:${ip}`);
+  } catch {}
+}
+
+export async function getBlacklistIps(): Promise<string[]> {
+  try {
+    const redis = getRedisClient();
+    const ips = await redis.smembers("ip:blacklist");
+    if (ips && ips.length > 0) {
+      ips.forEach((ip) => global.fluxwallBlacklistSet!.add(ip));
+      return Array.from(global.fluxwallBlacklistSet!);
+    }
+  } catch {}
+
+  return Array.from(global.fluxwallBlacklistSet!);
+}
+
+export async function addWhitelistIp(ip: string) {
+  global.fluxwallWhitelistSet!.add(ip);
+  try {
+    const redis = getRedisClient();
+    await redis.sadd("ip:whitelist", ip);
+  } catch {}
+}
+
+export async function removeWhitelistIp(ip: string) {
+  global.fluxwallWhitelistSet!.delete(ip);
+  try {
+    const redis = getRedisClient();
+    await redis.srem("ip:whitelist", ip);
+  } catch {}
+}
+
+export async function getWhitelistIps(): Promise<string[]> {
+  try {
+    const redis = getRedisClient();
+    const ips = await redis.smembers("ip:whitelist");
+    if (ips && ips.length > 0) {
+      ips.forEach((ip) => global.fluxwallWhitelistSet!.add(ip));
+      return Array.from(global.fluxwallWhitelistSet!);
+    }
+  } catch {}
+
+  return Array.from(global.fluxwallWhitelistSet!);
 }

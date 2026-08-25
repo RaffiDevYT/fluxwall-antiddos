@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
@@ -30,7 +30,7 @@ export default function ConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <Card className="max-w-md w-full border-primary/40 shadow-2xl animate-in zoom-in-95 duration-200 bg-[#0c101c] border">
         <CardHeader className="border-b border-primary/20 pb-3 flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
