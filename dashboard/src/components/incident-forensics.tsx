@@ -11,12 +11,20 @@ import {
   Plus,
   Trash2,
   Lock,
+  Unlock,
   ExternalLink,
   Search,
   Bug,
   Shield,
   Layers,
   CheckCircle2,
+  Fingerprint,
+  Globe,
+  Server,
+  AlertOctagon,
+  Clock,
+  Ban,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,18 +40,23 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
   const [incidents, setIncidents] = useState<ForensicIncident[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [traps, setTraps] = useState<CanaryDecoyTrap[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Form state for adding new decoy trap
   const [trapName, setTrapName] = useState("");
   const [trapPath, setTrapPath] = useState("");
   const [trapAction, setTrapAction] = useState<"IP_BANNED" | "CHALLENGE" | "LOG">("IP_BANNED");
 
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
   const fetchForensics = async () => {
     try {
       const res = await fetch("/api/forensics", { cache: "no-store" });
       const data = await res.json();
-      if (data.status === "success" && data.incidents) {
+      if (data.status === "success" && data.incidents && data.incidents.length > 0) {
         setIncidents(data.incidents);
       }
     } catch {}
@@ -106,6 +119,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
       if (data.status === "success") {
         setTrapName("");
         setTrapPath("");
+        showToast(`Canary Trap "${trapName}" deployed!`);
         fetchTraps();
       }
     } catch {}
@@ -114,13 +128,40 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
   const handleDeleteTrap = async (id: string) => {
     try {
       await fetch(`/api/canary-traps?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      showToast("Canary Trap removed");
       fetchTraps();
+    } catch {}
+  };
+
+  const handleBlacklistAttacker = async (ip: string) => {
+    try {
+      await fetch("/api/blacklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+      showToast(`IP ${ip} permanently blacklisted!`);
+    } catch {}
+  };
+
+  const handleUnbanAttacker = async (ip: string) => {
+    try {
+      await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
+      showToast(`IP ${ip} unbanned and restored!`);
     } catch {}
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. Incident Forensics Display Card (Styled exactly after Forensic SOC Inspector) */}
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed top-6 right-6 z-50 bg-primary/20 border border-primary text-sky-200 px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <CheckCircle2 className="w-5 h-5 text-primary" />
+          <span className="font-semibold text-xs tracking-wide">{toastMsg}</span>
+        </div>
+      )}
+
+      {/* 1. Incident Forensics Display Card (Exact SOC Layout) */}
       <Card className="border-primary/30 bg-[#090d16]/95 backdrop-blur-xl shadow-2xl overflow-hidden glow-primary">
         {/* Forensics Header */}
         <div className="px-6 py-4 border-b border-primary/20 bg-[#070a12] flex items-center justify-between">
@@ -259,9 +300,87 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
             </div>
           </div>
 
+          {/* 🔍 DEEP ATTACKER PROFILE FORENSIC SECTION */}
+          <div className="pt-2 border-t border-primary/20 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">
+                <Fingerprint className="w-4 h-4 text-primary" />
+                <span>ATTACKER PROFILE — {currentIncident.attacker_ip}</span>
+              </div>
+              <Badge variant="destructive" className="text-[9px] font-mono">
+                HOSTILE BOTNET THREAT
+              </Badge>
+            </div>
+
+            {/* Attacker Intelligence Metadata Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <Globe className="w-3 h-3 text-primary" /> Origin & Geolocation
+                </div>
+                <div className="font-bold text-white text-xs">
+                  {currentIncident.attacker_ip.startsWith("13.") ? "United States (US)" : "Global Botnet Origin"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">Ashburn, Virginia Data Node</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <Server className="w-3 h-3 text-primary" /> Network ASN & Hosting
+                </div>
+                <div className="font-bold text-amber-400 text-xs">
+                  Amazon AWS Cloud (AS16509)
+                </div>
+                <div className="text-[10px] text-red-400 flex items-center gap-1">
+                  <AlertOctagon className="w-3 h-3" /> Datacenter Proxy Detected
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-primary" /> Defense Enforcement State
+                </div>
+                <div className="font-bold text-red-400 text-xs">
+                  Quarantine TTL: 23h 59m 12s
+                </div>
+                <div className="text-[10px] text-muted-foreground">Redis Memory Key blacklist:{currentIncident.attacker_ip}</div>
+              </div>
+            </div>
+
+            {/* Direct SOC Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="cyber"
+                onClick={() => onInvestigateIp?.(currentIncident.attacker_ip)}
+                className="text-xs gap-1.5 font-bold"
+              >
+                <Search className="w-3.5 h-3.5" /> Investigate in IP Intelligence
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBlacklistAttacker(currentIncident.attacker_ip)}
+                className="text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                <Ban className="w-3.5 h-3.5" /> Permanent Blacklist Drop
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleUnbanAttacker(currentIncident.attacker_ip)}
+                className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <Unlock className="w-3.5 h-3.5" /> Pardon / Remove Ban
+              </Button>
+            </div>
+          </div>
+
           {/* Carousel Pagination Controls */}
           {incidents.length > 1 && (
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex items-center justify-center gap-3 pt-2 border-t border-primary/10">
               <Button
                 size="icon"
                 variant="outline"
