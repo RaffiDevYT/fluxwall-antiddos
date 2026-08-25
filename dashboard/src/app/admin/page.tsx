@@ -66,6 +66,27 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { translations, Language } from "@/lib/i18n";
 import ConfirmDialog from "@/components/confirm-dialog";
 
+// Modular Views
+import SidebarNav from "@/components/views/sidebar-nav";
+import OverviewView from "@/components/views/overview-view";
+import AnalyticsView from "@/components/views/analytics-view";
+import SimulatorView from "@/components/views/simulator-view";
+import CustomWafView from "@/components/views/custom-waf-view";
+import UpstreamsView from "@/components/views/upstreams-view";
+import SslView from "@/components/views/ssl-view";
+import IpLookupView from "@/components/views/ip-lookup-view";
+import UsersView from "@/components/views/users-view";
+import ProfileView from "@/components/views/profile-view";
+import BansView from "@/components/views/bans-view";
+import WhitelistView from "@/components/views/whitelist-view";
+import BlacklistView from "@/components/views/blacklist-view";
+import GeoIpView from "@/components/views/geoip-view";
+import WafSignaturesView from "@/components/views/waf-signatures-view";
+import RateLimitsView from "@/components/views/rate-limits-view";
+import LogsView from "@/components/views/logs-view";
+import MaintenanceView from "@/components/views/maintenance-view";
+import DiagnosticsModal from "@/components/views/diagnostics-modal";
+
 // Async Lazy-Loaded Visual Modules with Zero Main-Thread Blocking
 const TelemetryChart = dynamic(() => import("@/components/charts/telemetry-chart"), {
   ssr: false,
@@ -1117,365 +1138,27 @@ export default function EnterpriseAdminDashboard() {
   };
 
   // Reusable Sidebar Nav Content
+
+
+
+  // Reusable Sidebar Nav Content
   const renderNavLinks = () => (
-    <div className="p-4 space-y-4">
-      {/* Section 1: Monitoring & Telemetry */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("monitoring")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navMonitoring}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.monitoring ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.monitoring && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("overview")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "overview"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4 text-primary" />
-              <span>{t.navOverview}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("forensics")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "forensics"
-                  ? "bg-red-500/20 text-white border border-red-500/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-red-500/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShieldAlert className="w-4 h-4 text-red-400 animate-pulse" />
-                <span className="text-red-300 font-bold">{t.navForensics}</span>
-              </div>
-              <Badge variant="destructive" className="text-[8px] py-0 px-1 font-black bg-red-500/30 text-red-300">
-                SOC
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("threat_map")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "threat_map"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <MapPin className="w-4 h-4 text-primary animate-pulse" />
-              <span>{t.navThreatMap}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("packet_stream")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "packet_stream"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Terminal className="w-4 h-4 text-primary" />
-              <span>{t.navPacketInspector}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("analytics")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "analytics"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <PieChart className="w-4 h-4 text-primary" />
-              <span>{t.navAnalytics}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("simulator")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "simulator"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Crosshair className="w-4 h-4 text-primary" />
-              <span>{t.navSimulator}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("logs")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "logs"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Radio className="w-4 h-4 text-primary" />
-                <span>{t.navAttackLogs}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {liveLogs.length}
-              </Badge>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Section 2: Security Policies (Collapsible Dropdown Accordion) */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("policies")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navPolicies}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.policies ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.policies && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("lookup")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "lookup"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Fingerprint className="w-4 h-4 text-primary" />
-              <span>{t.navIpLookup}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("bans")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "bans"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Lock className="w-4 h-4 text-primary" />
-                <span>{t.navBans}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {bans.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("whitelist")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "whitelist"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-                <span>{t.navWhitelist}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {whitelist.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("blacklist")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "blacklist"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Ban className="w-4 h-4 text-primary" />
-                <span>{t.navBlacklist}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {blacklist.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("geoip")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "geoip"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Globe className="w-4 h-4 text-primary" />
-                <span>{t.navGeoip}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {blockedCountries.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("custom_waf")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "custom_waf"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Shield className="w-4 h-4 text-primary" />
-                <span>{t.navCustomWaf}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {customWafRules.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("waf")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "waf"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4 text-primary" />
-              <span>{t.navWaf}</span>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("ratelimits")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "ratelimits"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Gauge className="w-4 h-4 text-primary" />
-              <span>{t.navRateLimits}</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Section 3: Infrastructure & Edge */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("edge")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navInfrastructure}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.edge ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.edge && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("upstreams")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "upstreams"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Server className="w-4 h-4 text-primary" />
-                <span>{t.navUpstreams}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {upstreams.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("ssl")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "ssl"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Layers className="w-4 h-4 text-primary" />
-                <span>{t.navSsl}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {sslDomains.length}
-              </Badge>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Section 4: Access & Administration */}
-      <div>
-        <button
-          type="button"
-          onClick={() => toggleSection("admin")}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white uppercase tracking-wider transition mb-1 cursor-pointer rounded-md hover:bg-secondary/20"
-        >
-          <span>{t.navAdministration}</span>
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedSections.admin ? "-rotate-90 text-muted-foreground" : "rotate-0 text-primary"}`} />
-        </button>
-        {!collapsedSections.admin && (
-          <div className="space-y-1 animate-in fade-in-50 duration-150">
-            <button
-              onClick={() => handleNavSelect("users")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "users"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-primary" />
-                <span>{t.navUsers}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                {adminUsers.length}
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("profile")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "profile"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Key className="w-4 h-4 text-primary" />
-                <span>{t.navProfile}</span>
-              </div>
-              <Badge variant="outline" className="text-[9px] border-primary/30 text-primary py-0">
-                Active
-              </Badge>
-            </button>
-
-            <button
-              onClick={() => handleNavSelect("maintenance")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentNav === "maintenance"
-                  ? "bg-primary/20 text-white border border-primary/40 shadow-sm"
-                  : "text-muted-foreground hover:text-white hover:bg-primary/5"
-              }`}
-            >
-              <Wrench className="w-4 h-4 text-primary" />
-              <span>{t.navMaintenance}</span>
-            </button>
-
-
-          </div>
-        )}
-      </div>
-    </div>
+    <SidebarNav
+      currentNav={currentNav}
+      handleNavSelect={handleNavSelect}
+      t={t}
+      collapsedSections={collapsedSections}
+      toggleSection={toggleSection}
+      liveLogs={liveLogs}
+      bans={bans}
+      whitelist={whitelist}
+      blacklist={blacklist}
+      blockedCountries={blockedCountries}
+      customWafRules={customWafRules}
+      upstreams={upstreams}
+      sslDomains={sslDomains}
+      adminUsers={adminUsers}
+    />
   );
 
   return (
@@ -1715,152 +1398,25 @@ export default function EnterpriseAdminDashboard() {
             </Alert>
           ) : null}
 
-          {/* VIEW: OVERVIEW & TELEMETRY */}
+                              {/* VIEW: OVERVIEW & TELEMETRY */}
           {currentNav === "overview" && (
-            <div className="space-y-6">
-              {/* 4 Hero Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="glow-primary border-primary/30 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statTraffic}
-                    </CardTitle>
-                    <Activity className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-white">
-                      {stats.live_qps}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">req/sec</span>
-                    </div>
-                    <p className="text-[11px] text-primary mt-1 flex items-center gap-1 font-medium">
-                      <Zap className="w-3 h-3" /> {t.statLatency}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glow-primary border-primary/20 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statBans}
-                    </CardTitle>
-                    <Lock className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-primary">{stats.active_bans}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">{t.statBansSub}</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glow-primary border-primary/20 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statWhitelist}
-                    </CardTitle>
-                    <ShieldCheck className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-white">{stats.whitelist_count}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">{t.statWhitelistSub}</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glow-primary border-primary/20 bg-card/85">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                      {t.statThreats}
-                    </CardTitle>
-                    <Ban className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-black text-primary">{stats.threats_total}</div>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      {t.statThreatsSub}: {stats.blacklist_count} IPs
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Telemetry Chart & Quick Quarantine Form */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 border-primary/20 bg-card/85 glow-primary">
-                  <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <div>
-                      <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                        <Radio className="w-4 h-4 text-primary animate-pulse" /> {t.chartTitle}
-                      </CardTitle>
-                      <CardDescription className="text-[11px]">{t.chartDesc}</CardDescription>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                      {t.pollingEngine}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <TelemetryChart
-                      labels={chartLabels}
-                      dataPoints={chartPoints}
-                      label={t.chartReqSec}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Quick Quarantine Form Card */}
-                <Card className="border-primary/20 bg-card/85 flex flex-col justify-between">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-primary">
-                      <Lock className="w-4 h-4" /> {t.quickBanTitle}
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">{t.quickBanDesc}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleManualBan} className="space-y-3">
-                      <div>
-                        <label htmlFor="quick-ban-ip" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          {t.targetIp}
-                        </label>
-                        <Input
-                          id="quick-ban-ip"
-                          placeholder="e.g. 198.51.100.44"
-                          value={banIp}
-                          onChange={(e) => setBanIp(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="quick-ban-duration" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          {t.banDuration}
-                        </label>
-                        <select
-                          id="quick-ban-duration"
-                          value={banDuration}
-                          onChange={(e) => setBanDuration(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-card/60 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="300">{t.dur5Min}</option>
-                          <option value="900">{t.dur15Min}</option>
-                          <option value="3600">{t.dur1Hour}</option>
-                          <option value="86400">{t.dur24Hours}</option>
-                        </select>
-                      </div>
-                      <Button type="submit" variant="cyber" className="w-full mt-2 gap-2 font-bold" aria-label="Execute Quick IP Quarantine">
-                        <Ban className="w-3.5 h-3.5" /> {t.executeBan}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            <OverviewView
+              stats={stats}
+              t={t}
+              chartLabels={chartLabels}
+              chartPoints={chartPoints}
+              banIp={banIp}
+              setBanIp={setBanIp}
+              banDuration={banDuration}
+              setBanDuration={setBanDuration}
+              handleManualBan={handleManualBan}
+            />
           )}
 
-                    {/* VIEW: INCIDENT FORENSICS & CANARY DECOY TRAPS */}
+          {/* VIEW: INCIDENT FORENSICS & CANARY DECOY TRAPS */}
           {currentNav === "forensics" && (
             <div className="space-y-6">
-              <IncidentForensics
-                onInvestigateIp={(ip) => {
-                  setLookupTargetIp(ip);
-                  setCurrentNav("lookup");
-                  handleExecuteLookup(ip);
-                }}
-              />
+              <IncidentForensics />
             </div>
           )}
 
@@ -1880,1483 +1436,223 @@ export default function EnterpriseAdminDashboard() {
 
           {/* VIEW: THREAT ANALYTICS */}
           {currentNav === "analytics" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Attack Vector Doughnut Chart */}
-                <Card className="border-primary/20 bg-card/85 glow-primary">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                      <PieChart className="w-4 h-4 text-primary" /> {t.threatBreakdownTitle}
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">{t.threatBreakdownDesc}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col items-center justify-center p-6">
-                    <ThreatVectorChart vectorData={threatVectorData} />
-                  </CardContent>
-                </Card>
-
-                {/* Top Countries Bar Chart */}
-                <Card className="border-primary/20 bg-card/85 glow-primary">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-primary" /> {t.topCountriesTitle}
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">{t.topCountriesDesc}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <TopCountriesChart countryData={topCountriesData} />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            <AnalyticsView
+              t={t}
+              threatVectorData={threatVectorData}
+              topCountriesData={topCountriesData}
+            />
           )}
 
           {/* VIEW: DDOS ATTACK SIMULATOR SANDBOX */}
           {currentNav === "simulator" && (
-            <div className="space-y-6">
-              <Card className="border-primary/20 bg-card/85 glow-primary">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-primary">
-                    <Crosshair className="w-4 h-4" /> {t.simTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.simDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5 space-y-6">
-                  {/* Simulation Controls Form */}
-                  <div className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="sim-vector-select" className="text-xs font-semibold text-white block mb-1.5">
-                          {t.simVectorLabel}
-                        </label>
-                        <select
-                          id="sim-vector-select"
-                          value={simVector}
-                          onChange={(e) => setSimVector(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="http_flood">{t.simVectorHttpFlood}</option>
-                          <option value="sql_probe">{t.simVectorSqlProbe}</option>
-                          <option value="bad_bot">{t.simVectorBadBot}</option>
-                          <option value="pow_challenge">{t.simVectorPowChallenge}</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label htmlFor="sim-intensity-select" className="text-xs font-semibold text-white block mb-1.5">
-                          {t.simDurationLabel}
-                        </label>
-                        <select
-                          id="sim-intensity-select"
-                          value={simIntensity}
-                          onChange={(e) => setSimIntensity(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="25">Light Test: 25 requests</option>
-                          <option value="50">Standard Burst: 50 requests</option>
-                          <option value="100">Intense Flood: 100 requests</option>
-                          <option value="200">Stress Spike: 200 requests</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="cyber"
-                      onClick={handleLaunchSimulation}
-                      disabled={simRunning}
-                      aria-label="Launch Attack Simulation"
-                      className="w-full sm:w-auto text-xs font-bold gap-2"
-                    >
-                      <Send className={`w-3.5 h-3.5 ${simRunning ? "animate-spin" : ""}`} />
-                      {simRunning ? t.simRunning : t.btnLaunchSim}
-                    </Button>
-                  </div>
-
-                  {/* Simulation Results Report */}
-                  {simReport && (
-                    <div className="p-5 rounded-xl bg-[#090d16] border border-primary/30 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
-                        <div className="flex items-center gap-2">
-                          <ServerCrash className="w-5 h-5 text-primary" />
-                          <span className="font-bold text-sm text-white">{t.simResultsTitle}</span>
-                        </div>
-                        <Badge variant="default" className="font-mono text-xs">
-                          {simReport.deflection_rate} DEFLECTED
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simTotalSent}</div>
-                          <div className="text-base font-black text-white mt-0.5">{simReport.total_packets} reqs</div>
-                        </div>
-
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simDeflected}</div>
-                          <div className="text-base font-black text-primary mt-0.5">{simReport.packets_blocked} dropped</div>
-                        </div>
-
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simAvgLatency}</div>
-                          <div className="text-base font-black text-emerald-400 mt-0.5">{simReport.avg_packet_latency_ms}</div>
-                        </div>
-
-                        <div className="p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                          <div className="text-[10px] text-muted-foreground">{t.simDeflectionRate}</div>
-                          <div className="text-base font-black text-primary mt-0.5">{simReport.deflection_rate}</div>
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-[#070a12] rounded-lg border border-primary/20 font-mono text-xs text-muted-foreground">
-                        <span className="text-primary font-bold">Defense Reaction: </span>
-                        {simReport.mitigation_reason}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <SimulatorView
+              t={t}
+              simVector={simVector}
+              setSimVector={setSimVector}
+              simIntensity={simIntensity}
+              setSimIntensity={setSimIntensity}
+              simRunning={simRunning}
+              handleLaunchSimulation={handleLaunchSimulation}
+              simReport={simReport}
+            />
           )}
 
           {/* VIEW: CUSTOM WAF RULE BUILDER */}
           {currentNav === "custom_waf" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" /> {t.customWafTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.customWafDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Add Rule Form */}
-                <form onSubmit={handleCreateCustomRule} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddRule}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div>
-                      <label htmlFor="custom-waf-name" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleNameLabel}
-                      </label>
-                      <Input
-                        id="custom-waf-name"
-                        placeholder="e.g. Block WP Scanners"
-                        value={ruleName}
-                        onChange={(e) => setRuleName(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="custom-waf-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleFieldLabel}
-                      </label>
-                      <select
-                        id="custom-waf-field"
-                        value={ruleField}
-                        onChange={(e: any) => setRuleField(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="uri">{t.fieldUri}</option>
-                        <option value="user_agent">{t.fieldUserAgent}</option>
-                        <option value="query">{t.fieldQuery}</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label htmlFor="custom-waf-op" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleOperatorLabel}
-                      </label>
-                      <select
-                        id="custom-waf-op"
-                        value={ruleOp}
-                        onChange={(e: any) => setRuleOp(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="contains">{t.opContains}</option>
-                        <option value="equals">{t.opEquals}</option>
-                        <option value="regex">{t.opRegex}</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label htmlFor="custom-waf-action" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.ruleActionLabel}
-                      </label>
-                      <select
-                        id="custom-waf-action"
-                        value={ruleAction}
-                        onChange={(e: any) => setRuleAction(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="DROP">{t.actDrop}</option>
-                        <option value="CHALLENGE">{t.actChallenge}</option>
-                        <option value="LOG">{t.actLog}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="custom-waf-val" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                      {t.ruleValueLabel}
-                    </label>
-                    <Input
-                      id="custom-waf-val"
-                      placeholder="e.g. /wp-login.php or python-requests"
-                      value={ruleVal}
-                      onChange={(e) => setRuleVal(e.target.value)}
-                      required
-                      className="text-xs font-mono"
-                    />
-                  </div>
-
-                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Deploy WAF rule">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddRule}
-                  </Button>
-                </form>
-
-                {/* Rules Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableRuleName}</th>
-                        <th className="py-3 px-4">{t.tableRuleCondition}</th>
-                        <th className="py-3 px-4">{t.tableRuleAction}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {customWafRules.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                            {t.noCustomRules}
-                          </td>
-                        </tr>
-                      ) : (
-                        customWafRules.map((rule) => (
-                          <tr key={rule.id} className="hover:bg-accent/40 transition">
-                            <td className="py-3 px-4 font-bold text-white">{rule.name}</td>
-                            <td className="py-3 px-4 font-mono text-muted-foreground">
-                              <span className="text-primary font-bold uppercase text-[10px] mr-1">{rule.field}</span>
-                              <span className="text-[10px] mr-1">({rule.operator})</span>
-                              <code className="text-sky-300 bg-black/40 px-1.5 py-0.5 rounded text-[11px]">{rule.value}</code>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={rule.action === "DROP" ? "destructive" : "default"} className="text-[10px]">
-                                {rule.action}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Delete rule ${rule.name}`}
-                                onClick={() => handleDeleteCustomRule(rule.id)}
-                                className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <CustomWafView
+              t={t}
+              customWafRules={customWafRules}
+              ruleName={ruleName}
+              setRuleName={setRuleName}
+              ruleField={ruleField}
+              setRuleField={setRuleField}
+              ruleOp={ruleOp}
+              setRuleOp={setRuleOp}
+              ruleVal={ruleVal}
+              setRuleVal={setRuleVal}
+              ruleAction={ruleAction}
+              setRuleAction={setRuleAction}
+              handleCreateCustomRule={handleCreateCustomRule}
+              handleDeleteCustomRule={handleDeleteCustomRule}
+            />
           )}
 
           {/* VIEW: BACKEND UPSTREAM PROXIES */}
           {currentNav === "upstreams" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Server className="w-4 h-4 text-primary" /> {t.upstreamTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.upstreamDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Add Upstream Form */}
-                <form onSubmit={handleAddUpstream} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddUpstream}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label htmlFor="ups-host-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamHostLabel}
-                      </label>
-                      <Input
-                        id="ups-host-input"
-                        placeholder="e.g. 192.168.1.100"
-                        value={newUpsHost}
-                        onChange={(e) => setNewUpsHost(e.target.value)}
-                        required
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="ups-port-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamPortLabel}
-                      </label>
-                      <Input
-                        id="ups-port-input"
-                        type="number"
-                        placeholder="80"
-                        value={newUpsPort}
-                        onChange={(e) => setNewUpsPort(e.target.value)}
-                        required
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="ups-protocol-select" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamProtocolLabel}
-                      </label>
-                      <select
-                        id="ups-protocol-select"
-                        value={newUpsProtocol}
-                        onChange={(e: any) => setNewUpsProtocol(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="http">HTTP</option>
-                        <option value="https">HTTPS</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="ups-weight-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.upstreamWeightLabel}
-                      </label>
-                      <Input
-                        id="ups-weight-input"
-                        type="number"
-                        placeholder="1"
-                        value={newUpsWeight}
-                        onChange={(e) => setNewUpsWeight(e.target.value)}
-                        className="text-xs"
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Add upstream server">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddUpstream}
-                  </Button>
-                </form>
-
-                {/* Upstream Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableTarget}</th>
-                        <th className="py-3 px-4">{t.tableHealth}</th>
-                        <th className="py-3 px-4">{t.tableWeight}</th>
-                        <th className="py-3 px-4">{t.tableLatency}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {upstreams.map((ups) => (
-                        <tr key={ups.id} className="hover:bg-accent/40 transition">
-                          <td className="py-3 px-4 font-mono font-bold text-white flex items-center gap-2">
-                            <Server className="w-3.5 h-3.5 text-primary" />
-                            <span>{ups.protocol}://{ups.host}:{ups.port}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="default" className="text-[10px]">
-                              {t.statusHealthy}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-muted-foreground">weight: {ups.weight}</td>
-                          <td className="py-3 px-4 font-mono text-emerald-400">{ups.latency_ms} ms</td>
-                          <td className="py-3 px-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              aria-label={`Delete upstream ${ups.host}`}
-                              onClick={() => handleDeleteUpstream(ups.id)}
-                              className="text-destructive hover:bg-destructive/10 text-xs h-7"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <UpstreamsView
+              t={t}
+              upstreams={upstreams}
+              newUpsHost={newUpsHost}
+              setNewUpsHost={setNewUpsHost}
+              newUpsPort={newUpsPort}
+              setNewUpsPort={setNewUpsPort}
+              newUpsProtocol={newUpsProtocol}
+              setNewUpsProtocol={setNewUpsProtocol}
+              newUpsWeight={newUpsWeight}
+              setNewUpsWeight={setNewUpsWeight}
+              handleAddUpstream={handleAddUpstream}
+              handleDeleteUpstream={handleDeleteUpstream}
+            />
           )}
 
           {/* VIEW: SSL & DOMAINS */}
           {currentNav === "ssl" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" /> {t.sslTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.sslDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Register Domain Form */}
-                <form onSubmit={handleAddDomain} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddDomain}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="domain-input" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.domainNameLabel}
-                      </label>
-                      <Input
-                        id="domain-input"
-                        placeholder="e.g. defense.example.com"
-                        value={newDomain}
-                        onChange={(e) => setNewDomain(e.target.value)}
-                        required
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="issuer-select" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.sslIssuerLabel}
-                      </label>
-                      <select
-                        id="issuer-select"
-                        value={newIssuer}
-                        onChange={(e: any) => setNewIssuer(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/80 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="letsencrypt">{t.sslIssuerLetsEncrypt}</option>
-                        <option value="custom">{t.sslIssuerCustom}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <Button type="submit" variant="cyber" className="text-xs font-bold gap-1.5 mt-2" aria-label="Register domain">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddDomain}
-                  </Button>
-                </form>
-
-                {/* Domains List */}
-                <div className="space-y-3">
-                  {sslDomains.map((dom) => (
-                    <div
-                      key={dom.id}
-                      className="p-4 rounded-xl bg-secondary/20 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-primary" />
-                          <span className="font-mono font-bold text-white text-sm">{dom.domain}</span>
-                          <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400">
-                            SSL ACTIVE ({dom.days_remaining}d left)
-                          </Badge>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          Issuer: {dom.issuer === "letsencrypt" ? "Let's Encrypt Authority" : "Custom Certificate"}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="cyber"
-                          onClick={() => handleIssueLetsEncrypt(dom.domain)}
-                          className="text-[10px] h-7 px-2.5 font-bold gap-1"
-                          title="Trigger Zero-Touch Let's Encrypt HTTP-01 ACME Certificate Issuance"
-                        >
-                          <Lock className="w-3 h-3" /> Auto-Renew SSL
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={dom.force_https ? "cyber" : "outline"}
-                          onClick={() => handleToggleSslFlag(dom.id, "force_https")}
-                          className="text-[10px] h-7 px-2"
-                        >
-                          HTTPS Force: {dom.force_https ? "ON" : "OFF"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={dom.tls13_strict ? "cyber" : "outline"}
-                          onClick={() => handleToggleSslFlag(dom.id, "tls13_strict")}
-                          className="text-[10px] h-7 px-2"
-                        >
-                          TLS 1.3: {dom.tls13_strict ? "ON" : "OFF"}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteDomain(dom.id)}
-                          className="text-destructive hover:bg-destructive/10 h-7 w-7"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <SslView
+              t={t}
+              sslDomains={sslDomains}
+              newDomain={newDomain}
+              setNewDomain={setNewDomain}
+              newIssuer={newIssuer}
+              setNewIssuer={setNewIssuer}
+              handleAddDomain={handleAddDomain}
+              handleDeleteDomain={handleDeleteDomain}
+              handleToggleSslFlag={handleToggleSslFlag}
+              handleIssueLetsEncrypt={handleIssueLetsEncrypt}
+            />
           )}
 
           {/* VIEW: IP INTELLIGENCE LOOKUP */}
           {currentNav === "lookup" && (
-            <div className="space-y-6">
-              <Card className="border-primary/20 bg-card/85">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Fingerprint className="w-4 h-4 text-primary" /> {t.lookupTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.lookupDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <div className="flex gap-2 max-w-xl">
-                    <Input
-                      placeholder={t.searchIpPlaceholder}
-                      aria-label="Search IP Address"
-                      value={lookupTargetIp}
-                      onChange={(e) => setLookupTargetIp(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleExecuteLookup()}
-                      className="text-xs"
-                    />
-                    <Button
-                      variant="cyber"
-                      aria-label="Execute IP Lookup"
-                      onClick={() => handleExecuteLookup()}
-                      disabled={lookupLoading}
-                      className="gap-2 shrink-0 text-xs font-bold"
-                    >
-                      <Search className="w-3.5 h-3.5" />
-                      {lookupLoading ? "Investigating..." : t.btnLookup}
-                    </Button>
-                  </div>
-
-                  {/* Lookup Result Card */}
-                  {lookupResult && (
-                    <div className="mt-6 p-5 rounded-xl bg-[#090d16] border border-primary/30 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="flex items-center justify-between border-b border-primary/20 pb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 border border-primary/30 rounded-xl">
-                            <Globe className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-mono font-bold text-white flex items-center gap-2">
-                              {lookupResult.ip}
-                              <Badge variant="outline" className="font-mono text-[10px] border-primary/30 text-primary">
-                                {lookupResult.geo.country}
-                              </Badge>
-                            </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {lookupResult.geo.city ? `${lookupResult.geo.city}, ` : ""}{lookupResult.geo.region || ""}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Defense Status Badges */}
-                        <div className="flex items-center gap-2">
-                          {lookupResult.defense_status.is_banned && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              BANNED ({lookupResult.defense_status.ban_ttl_seconds}s remaining)
-                            </Badge>
-                          )}
-                          {lookupResult.defense_status.is_whitelisted && (
-                            <Badge variant="default" className="text-[10px]">WHITELISTED</Badge>
-                          )}
-                          {lookupResult.defense_status.is_blacklisted && (
-                            <Badge variant="destructive" className="text-[10px]">BLACKLISTED</Badge>
-                          )}
-                          {!lookupResult.defense_status.is_banned &&
-                            !lookupResult.defense_status.is_whitelisted &&
-                            !lookupResult.defense_status.is_blacklisted && (
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
-                                CLEAN IP
-                              </Badge>
-                            )}
-                        </div>
-                      </div>
-
-                      {/* Detail Metrics */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-primary/10">
-                          <div className="text-muted-foreground text-[10px]">{t.asnOrg}</div>
-                          <div className="font-semibold text-white mt-0.5 truncate">{lookupResult.geo.org}</div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-primary/10">
-                          <div className="text-muted-foreground text-[10px]">Hosting Category</div>
-                          <div className="font-semibold mt-0.5">
-                            {lookupResult.geo.is_datacenter ? (
-                              <span className="text-amber-400 flex items-center gap-1">
-                                <AlertOctagon className="w-3.5 h-3.5" /> Datacenter / Cloud Botnet
-                              </span>
-                            ) : (
-                              <span className="text-primary flex items-center gap-1">
-                                <UserCheck className="w-3.5 h-3.5" /> Residential / Clean ISP
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-secondary/30 border border-primary/10">
-                          <div className="text-muted-foreground text-[10px]">{t.strikeCount}</div>
-                          <div className="font-semibold text-white mt-0.5">
-                            {lookupResult.defense_status.strike_violations} / 5 strikes
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 1-Click Action Buttons */}
-                      <div className="pt-2 flex flex-wrap items-center gap-2">
-                        {lookupResult.defense_status.is_banned ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            aria-label={`Unban IP ${lookupResult.ip}`}
-                            onClick={() => handleUnban(lookupResult.ip)}
-                            className="text-xs border-primary/30 text-primary hover:bg-primary/20 gap-1.5"
-                          >
-                            <Unlock className="w-3.5 h-3.5" /> {t.btnUnban}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="cyber"
-                            aria-label={`Ban IP ${lookupResult.ip}`}
-                            onClick={() => {
-                              openConfirm({
-                                title: t.quickBanTitle,
-                                message: `${t.confirmBan} (${lookupResult.ip}) for 15m?`,
-                                variant: "danger",
-                                onConfirm: async () => {
-                                  await fetch("/api/bans", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ ip: lookupResult.ip, duration_sec: 900 }),
-                                  });
-                                  showToast(`IP ${lookupResult.ip} banned for 15m!`);
-                                  handleExecuteLookup(lookupResult.ip);
-                                },
-                              });
-                            }}
-                            className="text-xs gap-1.5"
-                          >
-                            <Lock className="w-3.5 h-3.5" /> {t.btnQuickBan}
-                          </Button>
-                        )}
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          aria-label={`Whitelist IP ${lookupResult.ip}`}
-                          onClick={() => {
-                            openConfirm({
-                              title: t.navWhitelist,
-                              message: `${lang === "id" ? "Tambahkan ke whitelist" : "Add to whitelist"}: ${lookupResult.ip}?`,
-                              variant: "primary",
-                              onConfirm: async () => {
-                                await fetch("/api/whitelist", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ ip: lookupResult.ip }),
-                                });
-                                showToast(`IP ${lookupResult.ip} whitelisted!`);
-                                handleExecuteLookup(lookupResult.ip);
-                              },
-                            });
-                          }}
-                          className="text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5" /> {t.btnQuickWhitelist}
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          aria-label={`Blacklist IP ${lookupResult.ip}`}
-                          onClick={() => {
-                            openConfirm({
-                              title: t.navBlacklist,
-                              message: `${lang === "id" ? "Blacklist permanen IP" : "Permanently blacklist IP"}: ${lookupResult.ip}?`,
-                              variant: "danger",
-                              onConfirm: async () => {
-                                await fetch("/api/blacklist", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ ip: lookupResult.ip }),
-                                });
-                                showToast(`IP ${lookupResult.ip} added to permanent blacklist!`);
-                                handleExecuteLookup(lookupResult.ip);
-                              },
-                            });
-                          }}
-                          className="text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
-                        >
-                          <Ban className="w-3.5 h-3.5" /> {t.btnQuickBlacklist}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <IpLookupView
+              t={t}
+              lang={lang}
+              lookupTargetIp={lookupTargetIp}
+              setLookupTargetIp={setLookupTargetIp}
+              lookupResult={lookupResult}
+              lookupLoading={lookupLoading}
+              handleExecuteLookup={handleExecuteLookup}
+              handleUnban={handleUnban}
+              openConfirm={openConfirm}
+              showToast={showToast}
+            />
           )}
 
           {/* VIEW: ADMIN USER MANAGEMENT */}
           {currentNav === "users" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" /> {t.usersTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.usersDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-6">
-                {/* Add User Form */}
-                <form onSubmit={handleAddUser} className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-3">
-                  <div className="text-xs font-bold text-white">{t.btnAddUser}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label htmlFor="new-admin-user" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.usernameLabel}
-                      </label>
-                      <Input
-                        id="new-admin-user"
-                        placeholder="e.g. security_lead"
-                        value={newUsername}
-                        onChange={(e) => setNewUsername(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="new-admin-pass" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.passwordLabel}
-                      </label>
-                      <Input
-                        id="new-admin-pass"
-                        type="password"
-                        placeholder="••••••••"
-                        value={newUserPassword}
-                        onChange={(e) => setNewUserPassword(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="new-admin-role" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.roleLabel}
-                      </label>
-                      <select
-                        id="new-admin-role"
-                        value={newUserRole}
-                        onChange={(e: any) => setNewUserRole(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-input bg-card/60 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="security_analyst">{t.roleAnalyst}</option>
-                        <option value="super_admin">{t.roleSuperAdmin}</option>
-                        <option value="auditor">{t.roleAuditor}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <Button type="submit" variant="cyber" className="text-xs gap-1.5 font-bold mt-2" aria-label="Add new admin user">
-                    <Plus className="w-3.5 h-3.5" /> {t.btnAddUser}
-                  </Button>
-                </form>
-
-                {/* Users Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableUser}</th>
-                        <th className="py-3 px-4">{t.tableRole}</th>
-                        <th className="py-3 px-4">{t.tableCreated}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {adminUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-accent/40 transition">
-                          <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md bg-primary/10 border border-primary/30 flex items-center justify-center text-[10px] text-primary">
-                              {user.username.substring(0, 2).toUpperCase()}
-                            </div>
-                            <span>{user.username}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant={user.role === "super_admin" ? "default" : "outline"} className="text-[10px]">
-                              {user.role === "super_admin"
-                                ? "Super Admin"
-                                : user.role === "security_analyst"
-                                ? "Security Analyst"
-                                : "Auditor"}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            {user.username === "admin" ? (
-                              <span className="text-[10px] text-muted-foreground italic">Protected Root</span>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Delete user ${user.username}`}
-                                onClick={() => handleDeleteUser(user.username)}
-                                className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> {t.btnDeleteUser}
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <UsersView
+              t={t}
+              adminUsers={adminUsers}
+              newUsername={newUsername}
+              setNewUsername={setNewUsername}
+              newUserPassword={newUserPassword}
+              setNewUserPassword={setNewUserPassword}
+              newUserRole={newUserRole}
+              setNewUserRole={setNewUserRole}
+              handleAddUser={handleAddUser}
+              handleDeleteUser={handleDeleteUser}
+            />
           )}
 
           {/* VIEW: SECURITY PROFILE & KEYS */}
           {currentNav === "profile" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Profile Card & API Key */}
-              <Card className="border-primary/20 bg-card/85">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" /> {t.profileTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.profileDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5 space-y-4 text-xs">
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/30 border border-primary/20">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-                      <UserCheck className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-white text-sm">admin</div>
-                      <div className="text-muted-foreground text-[11px]">{t.roleSuperAdmin}</div>
-                      <Badge variant="default" className="text-[9px] mt-1">SESSION ACTIVE</Badge>
-                    </div>
-                  </div>
-
-                  {/* REST API Key */}
-                  <div className="p-4 rounded-xl bg-secondary/30 border border-primary/20 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-white text-xs flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-primary" /> {t.apiKeyTitle}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Toggle API Key visibility"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="h-6 w-6 text-muted-foreground hover:text-white"
-                      >
-                        {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        type={showApiKey ? "text" : "password"}
-                        value={profileApiKey}
-                        readOnly
-                        aria-label="API Key value"
-                        className="font-mono text-xs text-primary bg-[#070a12]"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Copy API Key to clipboard"
-                        onClick={() => {
-                          navigator.clipboard.writeText(profileApiKey);
-                          showToast("API Key copied to clipboard!");
-                        }}
-                        className="shrink-0 text-xs border-primary/30 text-primary gap-1"
-                      >
-                        <Copy className="w-3.5 h-3.5" /> Copy
-                      </Button>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label="Regenerate REST API Key"
-                      onClick={handleRegenerateApiKey}
-                      className="text-[11px] border-primary/30 text-muted-foreground hover:text-primary mt-1 gap-1.5"
-                    >
-                      <RefreshCw className="w-3 h-3" /> {t.btnRegenKey}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Change Password Form */}
-              <Card className="border-primary/20 bg-card/85">
-                <CardHeader className="border-b border-border/80 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-primary" /> {t.changePassTitle}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">Update your administrator access credentials</CardDescription>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label htmlFor="new-admin-password-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.newPassLabel}
-                      </label>
-                      <Input
-                        id="new-admin-password-field"
-                        type="password"
-                        placeholder="••••••••"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="confirm-admin-password-field" className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        {t.confirmPassLabel}
-                      </label>
-                      <Input
-                        id="confirm-admin-password-field"
-                        type="password"
-                        placeholder="••••••••"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        className="text-xs"
-                      />
-                    </div>
-                    <Button type="submit" variant="cyber" className="w-full text-xs font-bold gap-2" aria-label="Save new administrator password">
-                      <Lock className="w-3.5 h-3.5" /> {t.btnSavePass}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
+            <ProfileView
+              t={t}
+              profileApiKey={profileApiKey}
+              handleRegenerateApiKey={handleRegenerateApiKey}
+              newPassword={newPassword}
+              setNewPassword={setNewPassword}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              showApiKey={showApiKey}
+              setShowApiKey={setShowApiKey}
+              handleChangePassword={handleChangePassword}
+              showToast={showToast}
+            />
           )}
 
           {/* VIEW: IP QUARANTINE & BANS */}
           {currentNav === "bans" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-primary" /> {t.navBans}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.noActiveBans}</CardDescription>
-                </div>
-                <div className="relative w-64">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-muted-foreground" />
-                  <Input
-                    placeholder={t.searchOffender}
-                    aria-label="Search Quarantined IP"
-                    value={searchFilter}
-                    onChange={(e) => setSearchFilter(e.target.value)}
-                    className="pl-8 text-xs"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border/60">
-                      <tr>
-                        <th className="py-3 px-4">{t.tableOffenderIp}</th>
-                        <th className="py-3 px-4">{t.tableRemainingTtl}</th>
-                        <th className="py-3 px-4">{t.tableReason}</th>
-                        <th className="py-3 px-4 text-right">{t.tableAction}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {filteredBans.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                            {t.noActiveBans}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredBans.map((ban) => (
-                          <tr key={ban.ip} className="hover:bg-accent/40 transition">
-                            <td className="py-3 px-4 font-mono font-bold text-primary">{ban.ip}</td>
-                            <td className="py-3 px-4">
-                              <Badge variant="outline" className="font-mono text-[11px] border-primary/30 text-primary bg-primary/5">
-                                {ban.remaining_ttl}s remaining
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground font-medium">{ban.reason}</td>
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                aria-label={`Unban IP ${ban.ip}`}
-                                onClick={() => handleUnban(ban.ip)}
-                                className="gap-1.5 text-[11px] h-7 border-primary/30 text-primary hover:bg-primary/20"
-                              >
-                                <Unlock className="w-3 h-3" /> {t.btnUnban}
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <BansView
+              t={t}
+              bans={bans}
+              banIp={banIp}
+              setBanIp={setBanIp}
+              banDuration={banDuration}
+              setBanDuration={setBanDuration}
+              handleManualBan={handleManualBan}
+              handleUnban={handleUnban}
+            />
           )}
 
           {/* VIEW: WHITELIST */}
           {currentNav === "whitelist" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" /> {t.navWhitelist}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.statWhitelistSub}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={handleAddWhitelist} className="flex gap-2 max-w-lg">
-                  <Input
-                    placeholder={t.trustedIpPlaceholder}
-                    aria-label="Whitelist IP Address"
-                    value={whitelistIp}
-                    onChange={(e) => setWhitelistIp(e.target.value)}
-                    required
-                  />
-                  <Button type="submit" variant="cyber" aria-label="Add IP to Whitelist" className="gap-1.5 shrink-0 font-bold">
-                    <Plus className="w-4 h-4" /> {t.btnAddWhitelist}
-                  </Button>
-                </form>
-
-                <div className="divide-y divide-border/60 border border-border/60 rounded-xl overflow-hidden">
-                  {whitelist.length === 0 ? (
-                    <div className="py-6 text-center text-muted-foreground text-xs">
-                      {t.noWhitelist}
-                    </div>
-                  ) : (
-                    whitelist.map((ip) => (
-                      <div key={ip} className="flex items-center justify-between py-2.5 px-4 hover:bg-accent/30 transition">
-                        <span className="font-mono text-primary font-bold text-xs">{ip}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Remove IP ${ip} from whitelist`}
-                          onClick={() => handleRemoveWhitelist(ip)}
-                          className="text-muted-foreground hover:text-primary h-7 w-7"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <WhitelistView
+              t={t}
+              whitelist={whitelist}
+              whitelistIp={whitelistIp}
+              setWhitelistIp={setWhitelistIp}
+              handleAddWhitelist={handleAddWhitelist}
+              handleRemoveWhitelist={handleRemoveWhitelist}
+            />
           )}
 
           {/* VIEW: BLACKLIST */}
           {currentNav === "blacklist" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Ban className="w-4 h-4 text-primary" /> {t.navBlacklist}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.statThreatsSub}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={handleAddBlacklist} className="flex gap-2 max-w-lg">
-                  <Input
-                    placeholder={t.maliciousIpPlaceholder}
-                    aria-label="Blacklist IP Address"
-                    value={blacklistIp}
-                    onChange={(e) => setBlacklistIp(e.target.value)}
-                    required
-                  />
-                  <Button type="submit" variant="cyber" aria-label="Add IP to Blacklist" className="gap-1.5 shrink-0 font-bold">
-                    <Plus className="w-4 h-4" /> {t.btnAddBlacklist}
-                  </Button>
-                </form>
-
-                <div className="divide-y divide-border/60 border border-border/60 rounded-xl overflow-hidden">
-                  {blacklist.length === 0 ? (
-                    <div className="py-6 text-center text-muted-foreground text-xs">
-                      {t.noBlacklist}
-                    </div>
-                  ) : (
-                    blacklist.map((ip) => (
-                      <div key={ip} className="flex items-center justify-between py-2.5 px-4 hover:bg-accent/30 transition">
-                        <span className="font-mono text-primary font-bold text-xs">{ip}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Remove IP ${ip} from blacklist`}
-                          onClick={() => handleRemoveBlacklist(ip)}
-                          className="text-muted-foreground hover:text-primary h-7 w-7"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <BlacklistView
+              t={t}
+              blacklist={blacklist}
+              blacklistIp={blacklistIp}
+              setBlacklistIp={setBlacklistIp}
+              handleAddBlacklist={handleAddBlacklist}
+              handleRemoveBlacklist={handleRemoveBlacklist}
+            />
           )}
 
           {/* VIEW: GEOIP COUNTRIES */}
           {currentNav === "geoip" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-primary" /> {t.navGeoip}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.countryCodePlaceholder}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={handleAddCountry} className="flex gap-2 max-w-lg">
-                  <Input
-                    placeholder={t.countryCodePlaceholder}
-                    aria-label="Country ISO code to block"
-                    value={newCountryCode}
-                    onChange={(e) => setNewCountryCode(e.target.value.toUpperCase())}
-                    maxLength={2}
-                    required
-                  />
-                  <Button type="submit" variant="cyber" aria-label="Block country code" className="gap-1.5 shrink-0 font-bold">
-                    <Plus className="w-4 h-4" /> {t.btnBlockCountry}
-                  </Button>
-                </form>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 pt-2">
-                  {blockedCountries.map((code) => (
-                    <div
-                      key={code}
-                      className="p-3 bg-secondary/40 border border-primary/20 rounded-xl flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-primary" />
-                        <span className="font-mono font-bold text-white text-sm">{code}</span>
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Unblock country ${code}`}
-                        onClick={() => handleRemoveCountry(code)}
-                        className="text-muted-foreground hover:text-primary h-6 w-6"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <GeoIpView
+              t={t}
+              blockedCountries={blockedCountries}
+              newCountryCode={newCountryCode}
+              setNewCountryCode={setNewCountryCode}
+              handleAddCountry={handleAddCountry}
+              handleRemoveCountry={handleRemoveCountry}
+            />
           )}
 
           {/* VIEW: WAF SIGNATURES */}
-          {currentNav === "waf" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-primary" /> {t.wafTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.wafDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.sqliTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">UNION SELECT, OR 1=1, sys.tables, sleep()</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.xssTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">&lt;script&gt;, javascript:, onerror=, document.cookie</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.scannersTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">sqlmap, nikto, dirbuster, masscan, nmap, zgrab</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.rceTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">eval(), system(), exec(), base64_decode, /bin/sh</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-
-                  <div className="p-3.5 bg-secondary/30 border border-primary/20 rounded-xl flex items-start justify-between md:col-span-2">
-                    <div>
-                      <div className="font-bold text-white text-xs">{t.slowlorisTitle}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">Multi-part HTTP Range headers (bytes=0-,5-0,5-1...)</div>
-                    </div>
-                    <Badge variant="default" className="text-[9px]">{t.enforcedBadge}</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {currentNav === "waf" && <WafSignaturesView t={t} />}
 
           {/* VIEW: RATE LIMIT SCALER */}
           {currentNav === "ratelimits" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Gauge className="w-4 h-4 text-primary" /> {t.rateLimitTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.rateLimitDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4 max-w-2xl">
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="ratelimit-general-input" className="text-xs font-semibold text-white block mb-1">
-                      {t.perIpLimit}: <span className="font-mono text-primary font-bold">{rateLimitGeneral} req/sec</span>
-                    </label>
-                    <Input
-                      id="ratelimit-general-input"
-                      type="number"
-                      value={rateLimitGeneral}
-                      onChange={(e) => setRateLimitGeneral(e.target.value)}
-                      className="text-xs max-w-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="ratelimit-burst-input" className="text-xs font-semibold text-white block mb-1">
-                      {t.maxBurstBucket}: <span className="font-mono text-primary font-bold">{rateLimitBurst} tokens</span>
-                    </label>
-                    <Input
-                      id="ratelimit-burst-input"
-                      type="number"
-                      value={rateLimitBurst}
-                      onChange={(e) => setRateLimitBurst(e.target.value)}
-                      className="text-xs max-w-xs"
-                    />
-                  </div>
-
-                  <Button
-                    variant="cyber"
-                    aria-label="Save Rate Limit policies"
-                    onClick={() => {
-                      openConfirm({
-                        title: t.rateLimitTitle,
-                        message: `${lang === "id" ? "Simpan kebijakan batas kecepatan" : "Update rate limit policy"}: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})?`,
-                        variant: "warning",
-                        onConfirm: () => {
-                          showToast(`Rate Limit policy updated: ${rateLimitGeneral} req/s (Burst: ${rateLimitBurst})`);
-                        },
-                      });
-                    }}
-                    className="gap-2 text-xs font-bold mt-2"
-                  >
-                    <Sliders className="w-3.5 h-3.5" /> {t.btnSaveRateLimit}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <RateLimitsView
+              t={t}
+              lang={lang}
+              rateLimitGeneral={rateLimitGeneral}
+              setRateLimitGeneral={setRateLimitGeneral}
+              rateLimitBurst={rateLimitBurst}
+              setRateLimitBurst={setRateLimitBurst}
+              openConfirm={openConfirm}
+              showToast={showToast}
+            />
           )}
 
           {/* VIEW: ATTACK LOGS */}
           {currentNav === "logs" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <RadioTower className="w-4 h-4 text-primary" /> {t.navAttackLogs}
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">{t.noThreatsRecorded}</CardDescription>
-                </div>
-                <Button size="sm" variant="outline" aria-label="Export audit logs to JSON" onClick={exportLogsAsJson} className="gap-1.5 text-xs text-primary border-primary/30">
-                  <Download className="w-3.5 h-3.5" /> {t.btnExportJson}
-                </Button>
-              </CardHeader>
-              <CardContent className="p-4 space-y-2 font-mono text-xs">
-                {liveLogs.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-                    <RadioTower className="w-6 h-6 text-primary animate-pulse" />
-                    <span>{t.noThreatsRecorded}</span>
-                  </div>
-                ) : (
-                  liveLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-card/40 border border-primary/10 gap-2 hover:bg-accent/20 transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground text-[10px]">
-                          {log.time_formatted || new Date(log.time * 1000).toLocaleTimeString()}
-                        </span>
-                        <Badge variant="default" className="text-[9px]">
-                          {log.event}
-                        </Badge>
-                        <span className="font-bold text-white">{log.client_ip}</span>
-                      </div>
-                      <span className="text-muted-foreground text-[11px] truncate max-w-md">
-                        {log.reason} {log.uri ? `(${log.uri})` : ""}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+            <LogsView
+              t={t}
+              liveLogs={liveLogs}
+              exportLogsAsJson={exportLogsAsJson}
+            />
           )}
 
           {/* VIEW: MAINTENANCE CONTROLS */}
           {currentNav === "maintenance" && (
-            <Card className="border-primary/20 bg-card/85">
-              <CardHeader className="border-b border-border/80 pb-4">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-primary" /> {t.maintTitle}
-                </CardTitle>
-                <CardDescription className="text-[11px]">{t.maintDesc}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Card className="border-primary/20 bg-secondary/30 p-4">
-                    <h4 className="font-bold text-white text-xs mb-1">{t.maintClearViolations}</h4>
-                    <p className="text-[11px] text-muted-foreground mb-3">{t.maintClearViolationsDesc}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Flush violations cache"
-                      onClick={() => handleGatewayAction("flush_violations", t.btnClearViolations)}
-                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" /> {t.btnClearViolations}
-                    </Button>
-                  </Card>
-
-                  <Card className="border-primary/20 bg-secondary/30 p-4">
-                    <h4 className="font-bold text-white text-xs mb-1">{t.maintResetThreats}</h4>
-                    <p className="text-[11px] text-muted-foreground mb-3">{t.maintResetThreatsDesc}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Reset global threat counter"
-                      onClick={() => handleGatewayAction("reset_threat_counter", t.btnResetThreats)}
-                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> {t.btnResetThreats}
-                    </Button>
-                  </Card>
-
-                  <Card className="border-primary/20 bg-secondary/30 p-4">
-                    <h4 className="font-bold text-white text-xs mb-1">{t.maintPurgeLogs}</h4>
-                    <p className="text-[11px] text-muted-foreground mb-3">{t.maintPurgeLogsDesc}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label="Purge real-time attack logs"
-                      onClick={() => handleGatewayAction("clear_logs", t.btnPurgeLogs)}
-                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> {t.btnPurgeLogs}
-                    </Button>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
+            <MaintenanceView
+              t={t}
+              handleGatewayAction={handleGatewayAction}
+            />
           )}
         </main>
       </div>
 
-      {/* Terminus Healthcheck Inspector Dialog */}
-      {showHealthModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <Card className="max-w-lg w-full border-primary/30 shadow-2xl animate-in fade-in zoom-in-95 duration-200 bg-[#0b101c]">
-            <CardHeader className="border-b border-border/80 pb-3 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Server className="w-5 h-5 text-primary" />
-                <div>
-                  <CardTitle className="text-sm">{t.diagTitle}</CardTitle>
-                  <CardDescription className="text-[11px]">{t.diagDesc}</CardDescription>
-                </div>
-              </div>
-              <Button size="icon" variant="ghost" aria-label="Close diagnostics dialog" onClick={() => setShowHealthModal(false)} className="h-7 w-7">
-                ✕
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3 p-5 text-xs">
-              {/* Redis Indicator */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <HardDrive className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.redisHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      Ping Latency: {health?.info?.redis?.latency_ms ?? 0} ms
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="default">
-                  {health?.info?.redis?.status?.toUpperCase() || "UP"}
-                </Badge>
-              </div>
-
-              {/* Memory Heap Indicator */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Cpu className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.memoryHeapHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      Heap Used: {health?.info?.memory_heap?.used_mb} MB / Alloc: {health?.info?.memory_heap?.allocated_mb} MB
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="default">
-                  {health?.info?.memory_heap?.status?.toUpperCase() || "UP"}
-                </Badge>
-              </div>
-
-              {/* Memory RSS Indicator */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Activity className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.processRssHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">
-                      Resident Size: {health?.info?.memory_rss?.used_mb} MB
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="default">UP</Badge>
-              </div>
-
-              {/* Gateway Socket Check */}
-              <div className="p-3 bg-secondary/30 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Network className="w-4 h-4 text-primary" />
-                  <div>
-                    <div className="font-bold text-white">{t.gatewaySocketHealth}</div>
-                    <div className="text-muted-foreground text-[11px]">Socket Status: /healthz</div>
-                  </div>
-                </div>
-                <Badge variant="default">
-                  {health?.info?.gateway?.status?.toUpperCase() || "UP"}
-                </Badge>
-              </div>
-            </CardContent>
-            <div className="p-4 border-t border-border/80 flex justify-end">
-              <Button variant="secondary" size="sm" aria-label="Close diagnostics inspector" onClick={() => setShowHealthModal(false)}>
-                {t.btnCloseDiag}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* Terminus Health Diagnostics Modal */}
+      <DiagnosticsModal
+        isOpen={showHealthModal}
+        onClose={() => setShowHealthModal(false)}
+        health={health}
+        t={t}
+      />
     </div>
   );
 }
