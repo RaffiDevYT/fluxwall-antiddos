@@ -54,6 +54,7 @@ import {
   Layers,
   MapPin,
   Terminal,
+  Bug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +98,8 @@ const CyberThreatMap = dynamic(() => import("@/components/charts/cyber-threat-ma
     </div>
   ),
 });
+
+const IncidentForensics = dynamic(() => import("@/components/incident-forensics"), { ssr: false, loading: () => <div className="h-80 w-full flex items-center justify-center bg-secondary/10 rounded-2xl border border-primary/20 animate-pulse"><span className="text-xs text-muted-foreground font-mono">Loading Incident Forensics SOC Canvas...</span></div> });
 
 const PacketInspector = dynamic(() => import("@/components/packet-inspector"), {
   ssr: false,
@@ -210,6 +213,7 @@ type NavSection =
   | "overview"
   | "threat_map"
   | "packet_stream"
+  | "forensics"
   | "analytics"
   | "simulator"
   | "bans"
@@ -291,7 +295,7 @@ export default function EnterpriseAdminDashboard() {
   };
 
   // Simulator State
-  const [simVector, setSimVector] = useState("http_flood");
+  const [simVector, setSimVector] = useState("canary_trap");
   const [simIntensity, setSimIntensity] = useState("50");
   const [simRunning, setSimRunning] = useState(false);
   const [simReport, setSimReport] = useState<SimulationReport | null>(null);
@@ -1099,6 +1103,23 @@ export default function EnterpriseAdminDashboard() {
           >
             <LayoutDashboard className="w-4 h-4 text-primary" />
             <span>{t.navOverview}</span>
+          </button>
+
+                    <button
+            onClick={() => handleNavSelect("forensics")}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              currentNav === "forensics"
+                ? "bg-red-500/20 text-white border border-red-500/40 shadow-sm"
+                : "text-muted-foreground hover:text-white hover:bg-red-500/5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-4 h-4 text-red-400 animate-pulse" />
+              <span className="text-red-300 font-bold">{t.navForensics}</span>
+            </div>
+            <Badge variant="destructive" className="text-[8px] py-0 px-1 font-black bg-red-500/30 text-red-300">
+              SOC
+            </Badge>
           </button>
 
           <button

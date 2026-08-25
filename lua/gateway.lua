@@ -1,4 +1,4 @@
-local ip_extractor = require "ip_extractor"
+﻿local ip_extractor = require "ip_extractor"
 local whitelist = require "whitelist"
 local blacklist = require "blacklist"
 local rate_limiter = require "rate_limiter"
@@ -10,6 +10,7 @@ local challenge = require "challenge"
 local metrics = require "metrics"
 local logger = require "logger"
 local config = require "config"
+local redis_pool = require "redis_pool"
 local cjson = require "cjson.safe"
 
 -- 1. Extract Real Client IP & Request Metadata
@@ -28,6 +29,43 @@ if whitelist.is_whitelisted(client_ip) then
     metrics.inc("gateway_http_requests_total", { status = "200", protection = "whitelisted", method = method })
     ngx.header["X-Gateway-Protection"] = "whitelisted"
     return -- Instantly allow request through
+end
+
+-- 3b. Step: IDS Canary Honeypot Trap Decoy Check (Instant 24h Ban)
+local canary_triggered = false
+redis_pool.exec(function(red)
+    local is_canary, trap_name = bot_filter.check_canary_trap(red)
+    if is_canary then
+        canary_triggered = true
+        red:setex("blacklist:" .. client_ip, 86400, "IDS_CANARY_TRAP: " .. trap_name)
+        red:incr("fluxwall:stats:threats_total")
+
+        logger.log_event("IDS_CANARY_TRAP", {
+            client_ip = client_ip,
+            uri = uri,
+            severity = "CRITICAL",
+            reason = "IDS [CANARY_TRAP_ENDPOINT] matched: " .. trap_name,
+            action = "IP_BANNED"
+        })
+    end
+end)
+
+if canary_triggered then
+    ngx.status = ngx.HTTP_FORBIDDEN
+    ngx.header["Content-Type"] = "application/json; charset=utf-8"
+    ngx.header["X-Gateway-Protection"] = "canary-trap-banned"
+    
+    local resp = {
+        incident = "#" .. tostring(math.random(1000, 9999)),
+        severity = "CRITICAL",
+        type = "IDS CANARY TRAP",
+        action = "IP_BANNED",
+        attacker_ip = client_ip,
+        request_uri = uri,
+        payload_match = "IDS [CANARY_TRAP_ENDPOINT] matched: Honeypot Decoy Probe Trap"
+    }
+    ngx.say(cjson.encode(resp))
+    return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
 -- 4. Step: Bad Bot, Scanner & Exploit Filter
@@ -71,162 +109,130 @@ redis_pool.exec(function(red)
             uri = uri,
             reason = custom_reason
         })
-
-        ngx.status = ngx.HTTP_FORBIDDEN
-        ngx.header["Content-Type"] = "application/json; charset=utf-8"
-        ngx.header["X-Gateway-Protection"] = "custom-waf"
-        
-        local resp = {
-            error = "Forbidden",
-            message = "Access restricted by custom Layer-7 firewall rule.",
-            client_ip = client_ip,
-            reason = custom_reason,
-            timestamp = ngx.time()
-        }
-        ngx.say(cjson.encode(resp))
     end
 end)
 
 if custom_blocked then
-    return ngx.exit(ngx.HTTP_FORBIDDEN)
-end
-
--- 5. Step: GeoIP Country Filtering
-local geo_allowed, country_code, geo_reason = geoip.check_country(client_ip)
-if not geo_allowed then
-    metrics.inc("gateway_blocked_requests_total", { reason = "geo_blocked" })
-    metrics.inc("gateway_http_requests_total", { status = "403", protection = "geo_blocked", method = method })
-
-    logger.log_event("GEO_BLOCKED", {
-        client_ip = client_ip,
-        uri = uri,
-        reason = geo_reason,
-        meta = { country = country_code }
-    })
-
     ngx.status = ngx.HTTP_FORBIDDEN
     ngx.header["Content-Type"] = "application/json; charset=utf-8"
-    ngx.header["X-Gateway-Protection"] = "geo-block"
-    
+    ngx.header["X-Gateway-Protection"] = "custom-waf"
     local resp = {
         error = "Forbidden",
-        message = "Access from your geographic region is restricted.",
+        message = "Custom WAF Security Rule Triggered",
         client_ip = client_ip,
-        country = country_code,
-        reason = geo_reason,
         timestamp = ngx.time()
     }
     ngx.say(cjson.encode(resp))
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 6. Step: IP Blacklist & Temporary Ban Check
-local is_blocked, block_reason, remaining_ttl = blacklist.is_blacklisted(client_ip)
-if is_blocked then
+-- 5. Step: Blacklist Check
+if blacklist.is_blacklisted(client_ip) then
     metrics.inc("gateway_blocked_requests_total", { reason = "blacklisted" })
     metrics.inc("gateway_http_requests_total", { status = "403", protection = "blacklisted", method = method })
-
-    logger.log_event("REQUEST_BLOCKED", {
-        client_ip = client_ip,
-        uri = uri,
-        reason = block_reason,
-        meta = { remaining_ttl = remaining_ttl }
-    })
 
     ngx.status = ngx.HTTP_FORBIDDEN
     ngx.header["Content-Type"] = "application/json; charset=utf-8"
     ngx.header["X-Gateway-Protection"] = "blacklisted"
-    if remaining_ttl and remaining_ttl > 0 then
-        ngx.header["Retry-After"] = tostring(remaining_ttl)
-    end
-
+    
     local resp = {
         error = "Forbidden",
-        message = "Your IP address has been blocked due to suspicious activity or security policy violation.",
+        message = "Your IP address is permanently blocked.",
         client_ip = client_ip,
-        reason = block_reason,
-        retry_after_seconds = remaining_ttl > 0 and remaining_ttl or nil,
         timestamp = ngx.time()
     }
     ngx.say(cjson.encode(resp))
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 7. Step: JavaScript Proof-of-Work (PoW) Challenge / Under Attack Mode
-local dynamic_under_attack = false
-redis_pool.exec(function(red)
-    local state = red:get("config:under_attack_mode")
-    if state == "1" then
-        dynamic_under_attack = true
-    end
-end)
+-- 6. Step: Temporary Ban / Quarantine Check
+local is_banned, remaining_ttl = auto_ban.is_banned(client_ip)
+if is_banned then
+    metrics.inc("gateway_blocked_requests_total", { reason = "banned" })
+    metrics.inc("gateway_http_requests_total", { status = "403", protection = "quarantined", method = method })
 
-local should_challenge = dynamic_under_attack or
-                         (config.challenge and config.challenge.enabled) or 
-                         (config.challenge and config.challenge.auto_trigger_on_surge and is_surge)
-
-if should_challenge and not challenge.has_valid_token(client_ip) then
-    -- Only challenge HTML/page navigation requests, not AJAX API calls
-    local accept_header = ngx.req.get_headers()["accept"] or ""
-    if accept_header:find("text/html") or accept_header == "*/*" or accept_header == "" then
-        return challenge.serve_challenge(client_ip, uri)
-    end
-end
-
--- 8. Step: Dynamic Rate Limit Check (with Surge Mode awareness)
-local allowed, current_reqs, max_limit, retry_after, rule_name, surge_active = rate_limiter.check(client_ip, uri, method)
-
--- Provide standard rate limiting & surge indicators
-local remaining = math.max(0, max_limit - current_reqs)
-ngx.header["X-RateLimit-Limit"] = tostring(max_limit)
-ngx.header["X-RateLimit-Remaining"] = tostring(remaining)
-ngx.header["X-RateLimit-Rule"] = rule_name
-ngx.header["X-Country-Code"] = country_code
-if surge_active then
-    ngx.header["X-Gateway-Surge-Mode"] = "active"
-end
-
-if not allowed then
-    -- Record violation and check if auto-ban threshold is reached
-    local is_banned, total_violations = auto_ban.record_violation(client_ip, uri)
-
-    metrics.inc("gateway_blocked_requests_total", { reason = "rate_limited" })
-    metrics.inc("gateway_http_requests_total", { status = "503", protection = is_banned and "auto-banned" or "rate-limited", method = method })
-
-    logger.log_event("RATE_LIMIT_EXCEEDED", {
-        client_ip = client_ip,
-        uri = uri,
-        reason = "RATE_LIMIT_EXCEEDED",
-        meta = {
-            current = current_reqs,
-            limit = max_limit,
-            rule = rule_name,
-            total_violations = total_violations,
-            auto_banned = is_banned,
-            surge_mode = surge_active
-        }
-    })
-
-    ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
+    ngx.status = ngx.HTTP_FORBIDDEN
     ngx.header["Content-Type"] = "application/json; charset=utf-8"
-    ngx.header["Retry-After"] = tostring(retry_after)
-    ngx.header["X-Gateway-Protection"] = is_banned and "auto-banned" or "rate-limited"
-
+    ngx.header["X-Gateway-Protection"] = "quarantined"
+    ngx.header["Retry-After"] = tostring(remaining_ttl)
+    
     local resp = {
-        error = "Too Many Requests / Service Unavailable",
-        message = "Rate limit threshold exceeded. Please slow down your requests.",
+        error = "Forbidden",
+        message = "Your IP has been quarantined due to excessive requests.",
         client_ip = client_ip,
-        rule = rule_name,
-        limit = max_limit,
-        retry_after_seconds = retry_after,
-        auto_banned = is_banned,
-        surge_defense_active = surge_active,
+        remaining_ban_seconds = remaining_ttl,
         timestamp = ngx.time()
     }
     ngx.say(cjson.encode(resp))
-    return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+    return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 9. Request is permitted to pass
-metrics.inc("gateway_http_requests_total", { status = "200", protection = "inspected-pass", method = method })
+-- 7. Step: GeoIP & ASN Datacenter / Cloud Proxy Check
+local is_geo_blocked, country_code, is_datacenter = geoip.check_ip(client_ip)
+if is_geo_blocked then
+    metrics.inc("gateway_blocked_requests_total", { reason = "geo_blocked" })
+    metrics.inc("gateway_http_requests_total", { status = "403", protection = "geo_blocked", method = method })
+
+    logger.log_event("GEO_IP_BLOCKED", {
+        client_ip = client_ip,
+        uri = uri,
+        reason = "Country " .. tostring(country_code) .. " or Datacenter Proxy Blocked"
+    })
+
+    ngx.status = ngx.HTTP_FORBIDDEN
+    ngx.header["Content-Type"] = "application/json; charset=utf-8"
+    ngx.header["X-Gateway-Protection"] = "geo-blocked"
+    
+    local resp = {
+        error = "Forbidden",
+        message = "Access restricted from your geographic region or datacenter proxy.",
+        country = country_code,
+        client_ip = client_ip,
+        timestamp = ngx.time()
+    }
+    ngx.say(cjson.encode(resp))
+    return ngx.exit(ngx.HTTP_FORBIDDEN)
+end
+
+-- 8. Step: Global "Under Attack Mode" JavaScript PoW Challenge
+local under_attack = challenge.is_under_attack_mode()
+if under_attack then
+    local passed = challenge.verify_pow_cookie(client_ip)
+    if not passed then
+        challenge.serve_pow_challenge_page(client_ip)
+        return -- Response served directly by challenge module
+    end
+end
+
+-- 9. Step: Sliding Window Rate Limiting with Dynamic Burst
+local allowed, count = rate_limiter.check_rate_limit(client_ip, scale_factor)
+if not allowed then
+    metrics.inc("gateway_rate_limited_total", { client_ip = client_ip })
+    metrics.inc("gateway_http_requests_total", { status = "429", protection = "rate_limited", method = method })
+
+    local strike_count = auto_ban.record_strike(client_ip)
+    logger.log_event("RATE_LIMIT_EXCEEDED", {
+        client_ip = client_ip,
+        uri = uri,
+        reason = string.format("Rate exceeded (current count: %d, strikes: %d)", count, strike_count)
+    })
+
+    ngx.status = ngx.HTTP_TOO_MANY_REQUESTS
+    ngx.header["Content-Type"] = "application/json; charset=utf-8"
+    ngx.header["X-Gateway-Protection"] = "rate-limited"
+    ngx.header["Retry-After"] = "60"
+    
+    local resp = {
+        error = "Too Many Requests",
+        message = "Rate limit exceeded. Please slow down your requests.",
+        client_ip = client_ip,
+        current_strikes = strike_count,
+        timestamp = ngx.time()
+    }
+    ngx.say(cjson.encode(resp))
+    return ngx.exit(ngx.HTTP_TOO_MANY_REQUESTS)
+end
+
+-- 10. Request Passes All Protection Layers
+metrics.inc("gateway_http_requests_total", { status = "200", protection = "inspected_pass", method = method })
 ngx.header["X-Gateway-Protection"] = "inspected-pass"

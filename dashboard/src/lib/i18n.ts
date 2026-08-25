@@ -1,4 +1,4 @@
-export type Language = "en" | "id";
+﻿export type Language = "en" | "id";
 
 export const translations = {
   en: {
@@ -41,6 +41,7 @@ export const translations = {
     navOverview: "Overview & Metrics",
     navThreatMap: "Cyber Threat Map",
     navPacketInspector: "Live Packet Stream",
+    navForensics: "Incident Forensics",
     navAnalytics: "Threat Analytics",
     navAttackLogs: "Attack Logs",
     navSimulator: "DDoS Simulator",
@@ -170,6 +171,7 @@ export const translations = {
     simDesc: "Safely execute controlled attack vectors against localhost gateway to verify mitigation telemetry",
     simVectorLabel: "Attack Simulation Vector",
     simDurationLabel: "Burst Intensity / Packets",
+    simVectorCanary: "Honeypot Canary Trap Probe (/wp-admin/phpinfo/)",
     simVectorHttpFlood: "Layer-7 HTTP GET Flood (Rate Limit & Surge Test)",
     simVectorSqlProbe: "Exploit Scanner Probe (SQLi & Path Traversal)",
     simVectorBadBot: "Headless Bad Bot Scraper (User-Agent Filter)",
@@ -346,6 +348,7 @@ export const translations = {
     navOverview: "Ringkasan & Metrik",
     navThreatMap: "Peta Serangan Siber",
     navPacketInspector: "Inspektor Paket Live",
+    navForensics: "Forensik Insiden",
     navAnalytics: "Analisis Ancaman",
     navAttackLogs: "Log Serangan",
     navSimulator: "Simulator DDoS",
@@ -475,6 +478,7 @@ export const translations = {
     simDesc: "Uji ketangguhan mitigasi gateway lokal secara aman untuk memvalidasi telemetri pertahanan",
     simVectorLabel: "Vektor Simulasi Serangan",
     simDurationLabel: "Intensitas Burst / Jumlah Paket",
+    simVectorCanary: "Probe Jebakan Honeypot Canary (/wp-admin/phpinfo/)",
     simVectorHttpFlood: "Layer-7 HTTP GET Flood (Uji Rate Limit & Surge)",
     simVectorSqlProbe: "Probe Scanner Eksploit (SQLi & Path Traversal)",
     simVectorBadBot: "Headless Bad Bot Scraper (Filter User-Agent)",

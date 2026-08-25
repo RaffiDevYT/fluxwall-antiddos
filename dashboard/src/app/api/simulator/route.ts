@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { recordPacket, recordLog } from "@/lib/packet-store";
+﻿import { NextResponse } from "next/server";
+import { recordPacket, recordLog, recordForensicIncident } from "@/lib/packet-store";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,13 @@ export async function POST(req: Request) {
     let eventName = "HTTP_FLOOD_DEFLECTED";
 
     switch (vector) {
+      case "canary_trap":
+        blockedCount = totalPackets;
+        allowedCount = 0;
+        simulatedReason = "IDS [CANARY_TRAP_ENDPOINT] matched: Canary Decoy: WordPress Admin Probe Trap (/wp-admin/phpinfo/)";
+        eventName = "IDS_CANARY_TRAP";
+        break;
+
       case "http_flood":
         blockedCount = Math.floor(totalPackets * 0.94);
         allowedCount = totalPackets - blockedCount;
@@ -56,20 +63,43 @@ export async function POST(req: Request) {
     const avgLatencyMs = (elapsedMs / totalPackets).toFixed(2);
     const deflectionRate = ((blockedCount / totalPackets) * 100).toFixed(1);
 
-    // Ingest generated attack incidents into Logs and Packet Stream
     const now = Date.now();
     const timeFormatted = new Date(now).toLocaleTimeString();
     const sampleOrigins = [
+      { ip: "13.61.104.165", country: "US" },
       { ip: "198.51.100.42", country: "CN" },
       { ip: "203.0.113.19", country: "RU" },
-      { ip: "45.154.255.89", country: "US" },
       { ip: "177.54.12.8", country: "BR" },
     ];
 
+    if (vector === "canary_trap") {
+      const incidentId = `#${Math.floor(Math.random() * 8000 + 1000)}`;
+      await recordForensicIncident({
+        id: incidentId,
+        recorded: new Date().toISOString().replace("T", " ").substring(0, 19),
+        severity: "CRITICAL",
+        type: "IDS CANARY TRAP",
+        action_taken: "IP_BANNED",
+        attacker_ip: "13.61.104.165",
+        method: "GET",
+        signed_in_as: "Not authenticated",
+        request_uri: "/wp-admin/phpinfo/",
+        user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        payload_match: "IDS [CANARY_TRAP_ENDPOINT] matched: Canary Decoy: WordPress Admin Probe Trap",
+      });
+    }
+
     for (let i = 0; i < Math.min(blockedCount, 6); i++) {
       const origin = sampleOrigins[i % sampleOrigins.length];
-      const targetUri = vector === "sql_probe" ? "/wp-login.php?id=1' UNION SELECT--" : vector === "bad_bot" ? "/.env" : "/api/v1/checkout";
-      
+      const targetUri =
+        vector === "canary_trap"
+          ? "/wp-admin/phpinfo/"
+          : vector === "sql_probe"
+          ? "/wp-login.php?id=1' UNION SELECT--"
+          : vector === "bad_bot"
+          ? "/.env"
+          : "/api/v1/checkout";
+
       // 1. Record in Attack Logs
       await recordLog({
         id: `log_sim_${now}_${i}`,
@@ -90,13 +120,13 @@ export async function POST(req: Request) {
         method: "GET",
         uri: targetUri,
         status: 403,
-        protection: vector === "sql_probe" ? "custom-waf" : vector === "bad_bot" ? "bot-filter" : "rate-limited",
+        protection: vector === "canary_trap" ? "canary-trap-banned" : vector === "sql_probe" ? "custom-waf" : vector === "bad_bot" ? "bot-filter" : "rate-limited",
         payload_size: `${Math.floor(Math.random() * 800 + 400)} B`,
         latency_ms: parseFloat(avgLatencyMs),
         headers: {
-          "User-Agent": vector === "bad_bot" ? "sqlmap/1.7.2#stable" : "Mozilla/5.0 (Windows NT 10.0)",
+          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0",
           "X-Attack-Vector": vector,
-          "X-Gateway-Protection": "blocked",
+          "X-Gateway-Protection": "canary-trap-banned",
           "X-Forwarded-For": origin.ip,
           "Connection": "close",
         },

@@ -1,6 +1,20 @@
-local config = require "config"
+﻿local config = require "config"
 
 local _M = {}
+
+-- Built-in Canary Honeypot Trap Decoys (Instant Critical IP Ban)
+local default_canary_traps = {
+    ["/wp-admin/phpinfo"] = "WordPress Admin Probe Trap",
+    ["/wp-admin/phpinfo/"] = "WordPress Admin Probe Trap",
+    ["/.env"] = "Environment Secret Leak Probe",
+    ["/.git/config"] = "Git Repository Exposure Probe",
+    ["/.git/HEAD"] = "Git Repository Exposure Probe",
+    ["/phpinfo.php"] = "PHP Info Exposure Probe",
+    ["/admin/config.bak"] = "Database Backup File Probe",
+    ["/actuator/env"] = "Spring Actuator Remote Probe",
+    ["/eval-stdin.php"] = "PHP WebShell Probe Trap",
+    ["/phpmyadmin/index.php"] = "Database GUI Exploit Probe",
+}
 
 -- Probe paths commonly requested by automated exploit scanners
 local suspicious_paths = {
@@ -70,15 +84,43 @@ function _M.check_range_header()
         return false, nil
     end
 
-    -- Count number of comma-separated ranges (abusive Range attack often has > 5 ranges)
     local _, count = range:gsub(",", "")
     if count >= 5 then
         return true, "ABUSIVE_RANGE_HEADER_ATTACK (Too many ranges)"
     end
 
-    -- Detect excessively long range header
     if #range > 200 then
         return true, "ABUSIVE_RANGE_HEADER_ATTACK (Header too long)"
+    end
+
+    return false, nil
+end
+
+-- Checks if incoming request triggered a Canary Honeypot Trap
+-- Returns: is_canary (bool), trap_name (string)
+function _M.check_canary_trap(red)
+    local uri = ngx.var.uri or "/"
+    local lower_uri = string.lower(uri)
+
+    -- 1. Check built-in traps
+    if default_canary_traps[lower_uri] then
+        return true, default_canary_traps[lower_uri]
+    end
+
+    -- 2. Check dynamic custom traps in Redis
+    if red then
+        local custom_traps_json, _ = red:get("waf:canary_traps")
+        if custom_traps_json and custom_traps_json ~= ngx.null then
+            local cjson = require "cjson.safe"
+            local traps = cjson.decode(custom_traps_json)
+            if traps and type(traps) == "table" then
+                for _, trap in ipairs(traps) do
+                    if trap.enabled and string.lower(trap.path) == lower_uri then
+                        return true, (trap.name or "Custom Honeypot Decoy Trap")
+                    end
+                end
+            end
+        end
     end
 
     return false, nil
@@ -138,7 +180,7 @@ function _M.check_custom_rules(red)
         return false, nil, nil
     end
 
-    local rules_json, err = red:get("waf:custom_rules")
+    local rules_json, _ = red:get("waf:custom_rules")
     if not rules_json or rules_json == ngx.null then
         return false, nil, nil
     end
@@ -193,4 +235,3 @@ function _M.check_custom_rules(red)
 end
 
 return _M
-
