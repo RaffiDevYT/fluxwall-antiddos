@@ -37,6 +37,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ForensicIncident, CanaryDecoyTrap } from "@/lib/packet-store";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 interface IncidentForensicsProps {
   onInvestigateIp?: (ip: string) => void;
@@ -68,6 +69,36 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
   const [geoData, setGeoData] = useState<AttackerGeoData | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: "danger" | "warning" | "primary";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const openConfirm = (opts: {
+    title?: string;
+    message?: string;
+    variant?: "danger" | "warning" | "primary";
+    onConfirm: () => void;
+  }) => {
+    setConfirmState({
+      isOpen: true,
+      title: opts.title || "Konfirmasi Tindakan",
+      message: opts.message || "Apakah Anda yakin ingin memproses tindakan ini?",
+      variant: opts.variant || "warning",
+      onConfirm: () => {
+        opts.onConfirm();
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
 
   // Form state for adding new decoy trap
   const [trapName, setTrapName] = useState("");
@@ -204,6 +235,15 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        variant={confirmState.variant}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed top-6 right-6 z-50 bg-primary/20 border border-primary text-sky-200 px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -541,7 +581,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleBlacklistAttacker(selectedIncident.attacker_ip)}
+                          onClick={() => openConfirm({ title: "Blacklist IP Penyerang", message: `Apakah Anda yakin ingin memasukkan ${selectedIncident.attacker_ip} ke Blacklist Permanen?`, variant: "danger", onConfirm: () => handleBlacklistAttacker(selectedIncident.attacker_ip) })}
                           className="text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
                         >
                           <Ban className="w-3.5 h-3.5" /> Permanent Blacklist Drop
@@ -550,7 +590,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleUnbanAttacker(selectedIncident.attacker_ip)}
+                          onClick={() => openConfirm({ title: "Buka Blokir IP", message: `Apakah Anda yakin ingin membuka blokir (pardon) untuk ${selectedIncident.attacker_ip}?`, variant: "warning", onConfirm: () => handleUnbanAttacker(selectedIncident.attacker_ip) })}
                           className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
                         >
                           <Unlock className="w-3.5 h-3.5" /> Pardon / Remove Ban
