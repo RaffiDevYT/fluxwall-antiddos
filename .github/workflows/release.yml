@@ -40,17 +40,14 @@ jobs:
       - name: Boot Stack & Healthcheck Verification
         run: |
           docker compose up -d gateway redis backend
-          
-          # Healthcheck retry loop
           for i in $(seq 1 20); do
-            echo "Checking gateway health... attempt $i/20"
+            echo "Checking gateway health attempt $i/20..."
             if curl -sf http://127.0.0.1:8080/healthz | grep -q "fluxwall-antiddos"; then
-              echo "✅ Gateway Healthcheck PASSED!"
+              echo "Gateway Healthcheck PASSED!"
               break
             fi
             sleep 2
           done
-
           docker compose down
 
   # 2. Automated Multi-Package Builder & Dynamic Release (DEB, RPM, TAR.GZ)
@@ -69,8 +66,8 @@ jobs:
 
       - name: Install Packaging Tools (dpkg, rpm, alien)
         run: |
-          sudo apt update
-          sudo apt install -y rpm alien
+          sudo apt-get update
+          sudo apt-get install -y rpm alien
 
       - name: Build Packages
         run: |
@@ -143,9 +140,11 @@ EOF
           name: fluxwall-packages
           path: dist/*
 
-      - name: Publish GitHub Release with Automatic Dynamic Changelog
+      - name: Publish GitHub Release with Dynamic Release Notes
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             dist/*
