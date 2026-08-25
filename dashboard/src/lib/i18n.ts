@@ -59,7 +59,7 @@ export const translations = {
     navSsl: "SSL & Domains",
     navAdministration: "Access & Administration",
     navUsers: "Admin Accounts",
-    navProfile: "Security Profile & Keys",
+    navProfile: "Profile & Keys",
     navSystem: "System & Engine",
     navMaintenance: "Maintenance Controls",
     navErrorShowcase: "Error Showcase",
@@ -241,7 +241,7 @@ export const translations = {
     btnDeleteUser: "Delete",
 
     // Profile Settings
-    profileTitle: "Security Profile & Credentials",
+    profileTitle: "Profile & Credentials",
     profileDesc: "Manage personal administrator passkey and REST API secret tokens",
     currentUsername: "Logged-in Username",
     accountRole: "Assigned Authority",
@@ -366,7 +366,7 @@ export const translations = {
     navSsl: "Domain & SSL",
     navAdministration: "Akses & Administrasi",
     navUsers: "Kelola User Admin",
-    navProfile: "Profil & Kunci Keamanan",
+    navProfile: "Profil & Kunci",
     navSystem: "Sistem & Engine",
     navMaintenance: "Kontrol Pemeliharaan",
     navErrorShowcase: "Showcase Error",
