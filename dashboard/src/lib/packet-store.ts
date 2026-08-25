@@ -25,7 +25,7 @@ export interface LogEvent {
 }
 
 export interface ForensicIncident {
-  id: string; // e.g. "#4186"
+  id: string;
   recorded: string;
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   type: string;
@@ -213,6 +213,7 @@ export async function recordForensicIncident(incident: ForensicIncident) {
     await redis.lpush("fluxwall:forensics", JSON.stringify(incident));
     await redis.ltrim("fluxwall:forensics", 0, 49);
     await redis.setex(`blacklist:${incident.attacker_ip}`, 86400, `IDS_CANARY_TRAP: ${incident.payload_match}`);
+    await redis.setex(`ip:ban:${incident.attacker_ip}`, 86400, "Honeypot Canary Trap Instant Ban");
     await redis.incr("fluxwall:stats:threats_total");
   } catch {}
 }
@@ -267,6 +268,7 @@ export async function addBlacklistIp(ip: string) {
     const redis = getRedisClient();
     await redis.sadd("ip:blacklist", ip);
     await redis.set(`blacklist:${ip}`, "PERMANENT_BLACKLIST");
+    await redis.set(`ip:ban:${ip}`, "PERMANENT_BLACKLIST");
   } catch {}
 }
 
@@ -276,6 +278,20 @@ export async function removeBlacklistIp(ip: string) {
     const redis = getRedisClient();
     await redis.srem("ip:blacklist", ip);
     await redis.del(`blacklist:${ip}`);
+    await redis.del(`ip:ban:${ip}`);
+  } catch {}
+}
+
+export async function unbanAndPardonIp(ip: string) {
+  global.fluxwallBlacklistSet!.delete(ip);
+  try {
+    const redis = getRedisClient();
+    await Promise.all([
+      redis.del(`ip:ban:${ip}`),
+      redis.del(`blacklist:${ip}`),
+      redis.srem("ip:blacklist", ip),
+      redis.del(`ip:violations:${ip}`),
+    ]);
   } catch {}
 }
 

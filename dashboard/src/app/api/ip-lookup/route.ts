@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getRedisClient } from "@/lib/redis";
+import { getBlacklistIps, getWhitelistIps } from "@/lib/packet-store";
 
 export const dynamic = "force-dynamic";
 
@@ -15,23 +16,45 @@ export async function GET(req: Request) {
     const cleanIp = ip.trim();
     const redis = getRedisClient();
 
-    // 1. Check Gateway Status in Redis
-    const isBanned = (await redis.exists(`ip:ban:${cleanIp}`)) === 1;
-    const banTtl = isBanned ? await redis.ttl(`ip:ban:${cleanIp}`) : 0;
-    const isWhitelisted = (await redis.sismember("ip:whitelist", cleanIp)) === 1;
-    const isBlacklisted = (await redis.sismember("ip:blacklist", cleanIp)) === 1;
-    const violations = parseInt((await redis.get(`ip:violations:${cleanIp}`)) || "0", 10);
+    // 1. Check Gateway & Quarantine Status in Redis
+    let isBanned = false;
+    let banTtl = 0;
+    let violations = 0;
 
-    // 2. Query GeoIP & ASN Info (from Redis Cache or ipinfo.io)
+    try {
+      const isIpBan = (await redis.exists(`ip:ban:${cleanIp}`)) === 1;
+      const isBlacklistKey = (await redis.exists(`blacklist:${cleanIp}`)) === 1;
+      isBanned = isIpBan || isBlacklistKey;
+
+      if (isBanned) {
+        const ttl1 = isIpBan ? await redis.ttl(`ip:ban:${cleanIp}`) : 0;
+        const ttl2 = isBlacklistKey ? await redis.ttl(`blacklist:${cleanIp}`) : 0;
+        banTtl = Math.max(ttl1, ttl2);
+        if (banTtl < 0) banTtl = 86400; // permanent / default 24h
+      }
+
+      violations = parseInt((await redis.get(`ip:violations:${cleanIp}`)) || "0", 10);
+    } catch {}
+
+    const blacklistIps = await getBlacklistIps();
+    const whitelistIps = await getWhitelistIps();
+    const isBlacklisted = blacklistIps.includes(cleanIp);
+    const isWhitelisted = whitelistIps.includes(cleanIp);
+
+    if (isBlacklisted) {
+      isBanned = true;
+    }
+
+    // 2. Query GeoIP & ASN Info
     let geoInfo: any = { country: "UNKNOWN", org: "Unknown ASN", city: "Unknown City" };
 
-    const cachedGeo = await redis.get(`ip:geo:${cleanIp}`);
-    if (cachedGeo) {
-      try {
-        geoInfo = JSON.parse(cachedGeo);
-      } catch {}
-    } else {
-      try {
+    try {
+      const cachedGeo = await redis.get(`ip:geo:${cleanIp}`);
+      if (cachedGeo) {
+        try {
+          geoInfo = JSON.parse(cachedGeo);
+        } catch {}
+      } else {
         const res = await fetch(`https://ipinfo.io/${cleanIp}/json`, {
           headers: { "User-Agent": "FluxWall-Dashboard/1.0" },
           next: { revalidate: 3600 },
@@ -44,11 +67,10 @@ export async function GET(req: Request) {
             city: data.city || "Unknown City",
             region: data.region || "",
           };
-          // Cache in Redis for 7 days
           await redis.setex(`ip:geo:${cleanIp}`, 604800, JSON.stringify(geoInfo));
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
     const isDatacenter =
       geoInfo.org &&

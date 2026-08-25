@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getRedisClient } from "@/lib/redis";
+import { unbanAndPardonIp } from "@/lib/packet-store";
 
 export const dynamic = "force-dynamic";
 
-// GET /admin/api/bans -> List all active bans
+// GET /api/bans -> List all active bans
 export async function GET() {
   try {
     const redis = getRedisClient();
@@ -43,7 +44,7 @@ export async function GET() {
   }
 }
 
-// POST /admin/api/bans -> Ban an IP
+// POST /api/bans -> Ban an IP
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
   }
 }
 
-// DELETE /admin/api/bans?ip=1.2.3.4 -> Unban an IP
+// DELETE /api/bans?ip=1.2.3.4 -> Completely pardon and unban an IP
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -75,12 +76,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Missing IP parameter" }, { status: 400 });
     }
 
-    const redis = getRedisClient();
-    await redis.del(`ip:ban:${ip}`);
+    await unbanAndPardonIp(ip);
 
     return NextResponse.json({
       status: "success",
-      message: `IP ${ip} unbanned successfully`,
+      message: `IP ${ip} pardoned and unbanned successfully`,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
