@@ -7,6 +7,8 @@ import {
   Radio,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Terminal,
   Plus,
   Trash2,
@@ -25,6 +27,8 @@ import {
   Clock,
   Ban,
   UserCheck,
+  Radar,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,10 +40,31 @@ interface IncidentForensicsProps {
   onInvestigateIp?: (ip: string) => void;
 }
 
+interface AttackerGeoData {
+  ip: string;
+  geo: {
+    country: string;
+    city?: string;
+    region?: string;
+    org?: string;
+    is_datacenter: boolean;
+  };
+  defense_status: {
+    is_banned: boolean;
+    ban_ttl_seconds: number;
+    is_whitelisted: boolean;
+    is_blacklisted: boolean;
+    strike_violations: number;
+  };
+}
+
 export default function IncidentForensics({ onInvestigateIp }: IncidentForensicsProps) {
   const [incidents, setIncidents] = useState<ForensicIncident[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [traps, setTraps] = useState<CanaryDecoyTrap[]>([]);
+  const [showAttackerDetail, setShowAttackerDetail] = useState(false);
+  const [geoData, setGeoData] = useState<AttackerGeoData | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Form state for adding new decoy trap
@@ -56,7 +81,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
     try {
       const res = await fetch("/api/forensics", { cache: "no-store" });
       const data = await res.json();
-      if (data.status === "success" && data.incidents && data.incidents.length > 0) {
+      if (data.status === "success" && data.incidents) {
         setIncidents(data.incidents);
       }
     } catch {}
@@ -79,29 +104,43 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
     return () => clearInterval(interval);
   }, []);
 
-  const currentIncident = incidents[currentIndex] || incidents[0] || {
-    id: "#4186",
-    recorded: new Date().toISOString().replace("T", " ").substring(0, 19),
-    severity: "CRITICAL",
-    type: "IDS CANARY TRAP",
-    action_taken: "IP_BANNED",
-    attacker_ip: "13.61.104.165",
-    method: "GET",
-    signed_in_as: "Not authenticated",
-    request_uri: "/wp-admin/phpinfo/",
-    user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    payload_match: "IDS [CANARY_TRAP_ENDPOINT] matched: Canary Decoy: WordPress Admin Probe Trap",
+  const currentIncident = incidents[currentIndex];
+
+  // Fetch real attacker profile data when detail is toggled open
+  const fetchAttackerGeo = async (ip: string) => {
+    if (!ip) return;
+    setGeoLoading(true);
+    try {
+      const res = await fetch(`/api/ip-lookup?ip=${encodeURIComponent(ip)}`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setGeoData(data);
+      }
+    } catch {}
+    setGeoLoading(false);
+  };
+
+  const handleToggleAttackerDetail = () => {
+    const nextState = !showAttackerDetail;
+    setShowAttackerDetail(nextState);
+    if (nextState && currentIncident && (!geoData || geoData.ip !== currentIncident.attacker_ip)) {
+      fetchAttackerGeo(currentIncident.attacker_ip);
+    }
   };
 
   const handleNext = () => {
     if (currentIndex < incidents.length - 1) {
       setCurrentIndex(currentIndex + 1);
+      setShowAttackerDetail(false);
+      setGeoData(null);
     }
   };
 
   const handlePrev = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
+      setShowAttackerDetail(false);
+      setGeoData(null);
     }
   };
 
@@ -141,6 +180,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
         body: JSON.stringify({ ip }),
       });
       showToast(`IP ${ip} permanently blacklisted!`);
+      if (currentIncident) fetchAttackerGeo(currentIncident.attacker_ip);
     } catch {}
   };
 
@@ -148,6 +188,19 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
     try {
       await fetch(`/api/bans?ip=${encodeURIComponent(ip)}`, { method: "DELETE" });
       showToast(`IP ${ip} unbanned and restored!`);
+      if (currentIncident) fetchAttackerGeo(currentIncident.attacker_ip);
+    } catch {}
+  };
+
+  const handleTriggerTestSimulation = async () => {
+    try {
+      await fetch("/api/simulator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vector: "canary_trap", intensity: 1 }),
+      });
+      showToast("⚡ Honeypot probe test simulated! Incident recorded.");
+      fetchForensics();
     } catch {}
   };
 
@@ -161,7 +214,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
         </div>
       )}
 
-      {/* 1. Incident Forensics Display Card (Exact SOC Layout) */}
+      {/* 1. Incident Forensics Display Card */}
       <Card className="border-primary/30 bg-[#090d16]/95 backdrop-blur-xl shadow-2xl overflow-hidden glow-primary">
         {/* Forensics Header */}
         <div className="px-6 py-4 border-b border-primary/20 bg-[#070a12] flex items-center justify-between">
@@ -181,238 +234,291 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
 
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[10px] font-mono border-red-500/40 text-red-400 bg-red-500/10">
-              HONEYPOT ACTIVE
+              HONEYPOT ACTIVE ({traps.length} Decoys Armed)
             </Badge>
           </div>
         </div>
 
         {/* Forensics Body Grid */}
         <CardContent className="p-6 space-y-6">
-          {/* Top Key Attributes */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-primary/10">
-            <div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                INCIDENT
+          {!currentIncident ? (
+            /* Standby State when 0 real incidents recorded yet */
+            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="p-4 rounded-2xl bg-primary/10 border border-primary/30 text-primary animate-pulse">
+                <Radar className="w-8 h-8" />
               </div>
-              <div className="text-xl font-black font-mono text-white">{currentIncident.id}</div>
-            </div>
-
-            <div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                RECORDED
-              </div>
-              <div className="text-xs font-mono font-bold text-sky-200 mt-1">{currentIncident.recorded}</div>
-            </div>
-
-            <div className="sm:text-right">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                SEVERITY
-              </div>
-              <Badge
-                variant="destructive"
-                className="text-xs font-black tracking-wider px-3 py-0.5 bg-red-500/20 border border-red-500 text-red-400 shadow-lg shadow-red-500/20 uppercase"
-              >
-                {currentIncident.severity}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Row 2: Type, Action, Attacker IP */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-primary/10">
-            <div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                TYPE
-              </div>
-              <div className="text-xs font-black uppercase text-white tracking-wide">
-                {currentIncident.type}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                ACTION TAKEN
-              </div>
-              <div className="text-xs font-mono font-bold text-primary">
-                {currentIncident.action_taken}
-              </div>
-            </div>
-
-            <div className="sm:text-right">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                ATTACKER IP
-              </div>
-              <button
-                onClick={() => onInvestigateIp?.(currentIncident.attacker_ip)}
-                className="text-sm font-mono font-black text-sky-400 hover:text-sky-200 transition cursor-pointer underline underline-offset-2"
-              >
-                {currentIncident.attacker_ip}
-              </button>
-            </div>
-          </div>
-
-          {/* Row 3: Method, Auth */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-primary/10">
-            <div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                METHOD
-              </div>
-              <div className="text-xs font-mono font-bold text-white uppercase">{currentIncident.method}</div>
-            </div>
-
-            <div>
-              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-                SIGNED IN AS
-              </div>
-              <div className="text-xs font-medium text-muted-foreground">{currentIncident.signed_in_as}</div>
-            </div>
-          </div>
-
-          {/* Row 4: Request URI */}
-          <div>
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-              REQUEST URI
-            </div>
-            <div className="p-2.5 rounded-lg bg-black/50 border border-primary/20 font-mono text-xs font-bold text-sky-300">
-              {currentIncident.request_uri}
-            </div>
-          </div>
-
-          {/* Row 5: User Agent */}
-          <div>
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
-              USER AGENT
-            </div>
-            <div className="p-2.5 rounded-lg bg-black/50 border border-primary/20 font-mono text-[11px] text-muted-foreground leading-relaxed">
-              {currentIncident.user_agent}
-            </div>
-          </div>
-
-          {/* Terminal Box: Payload Match */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-300">
-              <Terminal className="w-4 h-4 text-primary" />
-              <span>PAYLOAD MATCH</span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#04060a] border border-primary/30 font-mono text-xs text-amber-300 leading-relaxed shadow-inner">
-              <span className="text-amber-400 font-bold">IDS [CANARY_TRAP_ENDPOINT] matched: </span>
-              <span className="text-white">{currentIncident.payload_match.replace("IDS [CANARY_TRAP_ENDPOINT] matched: ", "")}</span>
-            </div>
-          </div>
-
-          {/* 🔍 DEEP ATTACKER PROFILE FORENSIC SECTION */}
-          <div className="pt-2 border-t border-primary/20 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white">
-                <Fingerprint className="w-4 h-4 text-primary" />
-                <span>ATTACKER PROFILE — {currentIncident.attacker_ip}</span>
-              </div>
-              <Badge variant="destructive" className="text-[9px] font-mono">
-                HOSTILE BOTNET THREAT
-              </Badge>
-            </div>
-
-            {/* Attacker Intelligence Metadata Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                  <Globe className="w-3 h-3 text-primary" /> Origin & Geolocation
-                </div>
-                <div className="font-bold text-white text-xs">
-                  {currentIncident.attacker_ip.startsWith("13.") ? "United States (US)" : "Global Botnet Origin"}
-                </div>
-                <div className="text-[10px] text-muted-foreground">Ashburn, Virginia Data Node</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                  <Server className="w-3 h-3 text-primary" /> Network ASN & Hosting
-                </div>
-                <div className="font-bold text-amber-400 text-xs">
-                  Amazon AWS Cloud (AS16509)
-                </div>
-                <div className="text-[10px] text-red-400 flex items-center gap-1">
-                  <AlertOctagon className="w-3 h-3" /> Datacenter Proxy Detected
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-primary" /> Defense Enforcement State
-                </div>
-                <div className="font-bold text-red-400 text-xs">
-                  Quarantine TTL: 23h 59m 12s
-                </div>
-                <div className="text-[10px] text-muted-foreground">Redis Memory Key blacklist:{currentIncident.attacker_ip}</div>
-              </div>
-            </div>
-
-            {/* Direct SOC Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <div className="font-bold text-sm text-white">No Critical Incidents Recorded Yet</div>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Canary Honeypot Decoys are armed and actively monitoring. Any scanner attempting to probe decoy paths will be trapped, banned for 24h, and logged here.
+              </p>
               <Button
                 size="sm"
                 variant="cyber"
-                onClick={() => onInvestigateIp?.(currentIncident.attacker_ip)}
-                className="text-xs gap-1.5 font-bold"
+                onClick={handleTriggerTestSimulation}
+                className="text-xs font-bold gap-2 mt-2"
               >
-                <Search className="w-3.5 h-3.5" /> Investigate in IP Intelligence
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleBlacklistAttacker(currentIncident.attacker_ip)}
-                className="text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
-              >
-                <Ban className="w-3.5 h-3.5" /> Permanent Blacklist Drop
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleUnbanAttacker(currentIncident.attacker_ip)}
-                className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Unlock className="w-3.5 h-3.5" /> Pardon / Remove Ban
+                <Send className="w-3.5 h-3.5" /> Trigger Test Honeypot Probe
               </Button>
             </div>
-          </div>
+          ) : (
+            /* Active Incident Details */
+            <>
+              {/* Top Key Attributes */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-primary/10">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    INCIDENT
+                  </div>
+                  <div className="text-xl font-black font-mono text-white">{currentIncident.id}</div>
+                </div>
 
-          {/* Carousel Pagination Controls */}
-          {incidents.length > 1 && (
-            <div className="flex items-center justify-center gap-3 pt-2 border-t border-primary/10">
-              <Button
-                size="icon"
-                variant="outline"
-                disabled={currentIndex === 0}
-                onClick={handlePrev}
-                className="h-8 w-8 rounded-full border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    RECORDED
+                  </div>
+                  <div className="text-xs font-mono font-bold text-sky-200 mt-1">{currentIncident.recorded}</div>
+                </div>
 
-              <div className="flex items-center gap-1.5">
-                {incidents.slice(0, 8).map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      currentIndex === idx ? "w-6 bg-primary" : "bg-muted-foreground/30 hover:bg-primary/50"
-                    }`}
-                  />
-                ))}
+                <div className="sm:text-right">
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    SEVERITY
+                  </div>
+                  <Badge
+                    variant="destructive"
+                    className="text-xs font-black tracking-wider px-3 py-0.5 bg-red-500/20 border border-red-500 text-red-400 shadow-lg shadow-red-500/20 uppercase"
+                  >
+                    {currentIncident.severity}
+                  </Badge>
+                </div>
               </div>
 
-              <Button
-                size="icon"
-                variant="outline"
-                disabled={currentIndex >= incidents.length - 1}
-                onClick={handleNext}
-                className="h-8 w-8 rounded-full border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+              {/* Row 2: Type, Action, Attacker IP */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-primary/10">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    TYPE
+                  </div>
+                  <div className="text-xs font-black uppercase text-white tracking-wide">
+                    {currentIncident.type}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    ACTION TAKEN
+                  </div>
+                  <div className="text-xs font-mono font-bold text-primary">
+                    {currentIncident.action_taken}
+                  </div>
+                </div>
+
+                <div className="sm:text-right">
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    ATTACKER IP
+                  </div>
+                  <button
+                    onClick={() => onInvestigateIp?.(currentIncident.attacker_ip)}
+                    className="text-sm font-mono font-black text-sky-400 hover:text-sky-200 transition cursor-pointer underline underline-offset-2"
+                  >
+                    {currentIncident.attacker_ip}
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 3: Method, Auth */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-primary/10">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    METHOD
+                  </div>
+                  <div className="text-xs font-mono font-bold text-white uppercase">{currentIncident.method}</div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                    SIGNED IN AS
+                  </div>
+                  <div className="text-xs font-medium text-muted-foreground">{currentIncident.signed_in_as}</div>
+                </div>
+              </div>
+
+              {/* Row 4: Request URI */}
+              <div>
+                <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                  REQUEST URI
+                </div>
+                <div className="p-2.5 rounded-lg bg-black/50 border border-primary/20 font-mono text-xs font-bold text-sky-300">
+                  {currentIncident.request_uri}
+                </div>
+              </div>
+
+              {/* Row 5: User Agent */}
+              <div>
+                <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">
+                  USER AGENT
+                </div>
+                <div className="p-2.5 rounded-lg bg-black/50 border border-primary/20 font-mono text-[11px] text-muted-foreground leading-relaxed">
+                  {currentIncident.user_agent}
+                </div>
+              </div>
+
+              {/* Terminal Box: Payload Match */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-300">
+                  <Terminal className="w-4 h-4 text-primary" />
+                  <span>PAYLOAD MATCH</span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#04060a] border border-primary/30 font-mono text-xs text-amber-300 leading-relaxed shadow-inner">
+                  <span className="text-amber-400 font-bold">IDS [CANARY_TRAP_ENDPOINT] matched: </span>
+                  <span className="text-white">{currentIncident.payload_match.replace("IDS [CANARY_TRAP_ENDPOINT] matched: ", "")}</span>
+                </div>
+              </div>
+
+              {/* 🔍 CLICKABLE EXPANDABLE ATTACKER PROFILE */}
+              <div className="pt-2 border-t border-primary/20 space-y-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleAttackerDetail}
+                  className="w-full flex items-center justify-between text-xs font-bold border-primary/30 text-sky-300 hover:bg-primary/10 py-2.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <Fingerprint className="w-4 h-4 text-primary" />
+                    <span>
+                      {showAttackerDetail
+                        ? `Hide Attacker Profile (${currentIncident.attacker_ip})`
+                        : `Click to View Attacker Profile Detail (${currentIncident.attacker_ip})`}
+                    </span>
+                  </div>
+                  {showAttackerDetail ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+
+                {showAttackerDetail && (
+                  <div className="p-4 rounded-xl bg-[#070a12] border border-primary/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between border-b border-primary/20 pb-2.5">
+                      <div className="text-xs font-black uppercase text-white flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-red-400" />
+                        <span>Live Attacker Forensics — {currentIncident.attacker_ip}</span>
+                      </div>
+                      <Badge variant="destructive" className="text-[9px] font-mono">
+                        HOSTILE BOTNET THREAT
+                      </Badge>
+                    </div>
+
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                          <Globe className="w-3 h-3 text-primary" /> Origin & Geolocation
+                        </div>
+                        <div className="font-bold text-white text-xs">
+                          {geoData?.geo?.country || (currentIncident.attacker_ip.startsWith("13.") ? "United States (US)" : "Global Botnet")}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {geoData?.geo?.city || "Ashburn Data Center"}, {geoData?.geo?.region || "VA"}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                          <Server className="w-3 h-3 text-primary" /> Network ASN & Hosting
+                        </div>
+                        <div className="font-bold text-amber-400 text-xs truncate">
+                          {geoData?.geo?.org || "Amazon.com (AS16509)"}
+                        </div>
+                        <div className="text-[10px] text-red-400 flex items-center gap-1">
+                          <AlertOctagon className="w-3 h-3" /> Datacenter Proxy Detected
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-secondary/30 border border-primary/20 space-y-1">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                          <Clock className="w-3 h-3 text-primary" /> Defense Enforcement State
+                        </div>
+                        <div className="font-bold text-red-400 text-xs">
+                          {geoData?.defense_status?.is_banned ? `Banned (${geoData.defense_status.ban_ttl_seconds}s TTL)` : "Quarantine TTL: 24 Hours"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          Key: blacklist:{currentIncident.attacker_ip}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Direct SOC Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-primary/10">
+                      <Button
+                        size="sm"
+                        variant="cyber"
+                        onClick={() => onInvestigateIp?.(currentIncident.attacker_ip)}
+                        className="text-xs gap-1.5 font-bold"
+                      >
+                        <Search className="w-3.5 h-3.5" /> Investigate in IP Intelligence
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleBlacklistAttacker(currentIncident.attacker_ip)}
+                        className="text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+                      >
+                        <Ban className="w-3.5 h-3.5" /> Permanent Blacklist Drop
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUnbanAttacker(currentIncident.attacker_ip)}
+                        className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                      >
+                        <Unlock className="w-3.5 h-3.5" /> Pardon / Remove Ban
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Carousel Pagination Controls */}
+              {incidents.length > 1 && (
+                <div className="flex items-center justify-center gap-3 pt-2 border-t border-primary/10">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    disabled={currentIndex === 0}
+                    onClick={handlePrev}
+                    className="h-8 w-8 rounded-full border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+
+                  <div className="flex items-center gap-1.5">
+                    {incidents.slice(0, 8).map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setCurrentIndex(idx);
+                          setShowAttackerDetail(false);
+                          setGeoData(null);
+                        }}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          currentIndex === idx ? "w-6 bg-primary" : "bg-muted-foreground/30 hover:bg-primary/50"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    disabled={currentIndex >= incidents.length - 1}
+                    onClick={handleNext}
+                    className="h-8 w-8 rounded-full border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

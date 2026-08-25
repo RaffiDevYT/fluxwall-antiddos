@@ -68,21 +68,7 @@ if (!global.fluxwallLogBuffer) {
 }
 
 if (!global.fluxwallForensicsBuffer) {
-  global.fluxwallForensicsBuffer = [
-    {
-      id: "#4186",
-      recorded: new Date().toISOString().replace("T", " ").substring(0, 19),
-      severity: "CRITICAL",
-      type: "IDS CANARY TRAP",
-      action_taken: "IP_BANNED",
-      attacker_ip: "13.61.104.165",
-      method: "GET",
-      signed_in_as: "Not authenticated",
-      request_uri: "/wp-admin/phpinfo/",
-      user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      payload_match: "IDS [CANARY_TRAP_ENDPOINT] matched: Canary Decoy: WordPress Admin Probe Trap",
-    },
-  ];
+  global.fluxwallForensicsBuffer = [];
 }
 
 if (!global.fluxwallCanaryTrapsBuffer) {
@@ -91,7 +77,7 @@ if (!global.fluxwallCanaryTrapsBuffer) {
       id: "trap-wp-phpinfo",
       name: "WordPress Admin Probe Trap",
       path: "/wp-admin/phpinfo/",
-      hits: 42,
+      hits: 0,
       enabled: true,
       action: "IP_BANNED",
       created_at: "2026-08-20T00:00:00.000Z",
@@ -100,7 +86,7 @@ if (!global.fluxwallCanaryTrapsBuffer) {
       id: "trap-env-leak",
       name: "Environment Secret Leak Probe",
       path: "/.env",
-      hits: 89,
+      hits: 0,
       enabled: true,
       action: "IP_BANNED",
       created_at: "2026-08-20T00:00:00.000Z",
@@ -109,7 +95,7 @@ if (!global.fluxwallCanaryTrapsBuffer) {
       id: "trap-git-head",
       name: "Git Repository Exposure Probe",
       path: "/.git/HEAD",
-      hits: 31,
+      hits: 0,
       enabled: true,
       action: "IP_BANNED",
       created_at: "2026-08-20T00:00:00.000Z",
@@ -118,7 +104,7 @@ if (!global.fluxwallCanaryTrapsBuffer) {
       id: "trap-db-backup",
       name: "Database Backup File Probe",
       path: "/admin/config.bak",
-      hits: 15,
+      hits: 0,
       enabled: true,
       action: "IP_BANNED",
       created_at: "2026-08-20T00:00:00.000Z",
@@ -127,7 +113,7 @@ if (!global.fluxwallCanaryTrapsBuffer) {
       id: "trap-pma-gui",
       name: "Database GUI Exploit Probe",
       path: "/phpmyadmin/index.php",
-      hits: 64,
+      hits: 0,
       enabled: true,
       action: "IP_BANNED",
       created_at: "2026-08-20T00:00:00.000Z",
