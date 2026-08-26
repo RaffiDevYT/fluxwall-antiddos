@@ -44,7 +44,7 @@ jobs:
           curl -s http://127.0.0.1:8080/healthz | grep -q "fluxwall-antiddos" && echo "Healthcheck PASSED!"
           docker compose down
 
-  # 2. Automated Multi-Package Builder & Release (DEB, RPM, TAR.GZ)
+  # 2. Automated Multi-Package Builder & Dynamic Release (DEB, RPM, TAR.GZ)
   package:
     name: Build Packages (DEB, RPM, TAR.GZ)
     needs: test
@@ -55,6 +55,8 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Packaging Tools (dpkg, rpm, alien)
         run: |
@@ -126,6 +128,36 @@ jobs:
           cd dist
           sha256sum * > SHA256SUMS
 
+      - name: Generate Dynamic Commit Changelog
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || echo "")
+
+          echo "## 🚀 What's Changed in ${CURRENT_TAG}:" > release_notes.md
+          echo "" >> release_notes.md
+
+          if [ -n "$PREV_TAG" ]; then
+            git log "${PREV_TAG}..${CURRENT_TAG}" --pretty=format:"* %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" --no-merges >> release_notes.md
+            echo "" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURRENT_TAG}" >> release_notes.md
+          else
+            git log -n 15 --pretty=format:"* %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" --no-merges >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "---" >> release_notes.md
+          echo "### 📦 Package Builds & Binaries:" >> release_notes.md
+          echo "* **Debian / Ubuntu Package**: `fluxwall_*.deb` (`sudo dpkg -i <file>.deb`)" >> release_notes.md
+          echo "* **RHEL / CentOS / AlmaLinux**: `fluxwall-*.noarch.rpm` (`sudo rpm -ivh <file>.rpm`)" >> release_notes.md
+          echo "* **Source Tarball**: `fluxwall-*.tar.gz`" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### ⚡ 1-Line VPS Quick Install:" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sudo bash" >> release_notes.md
+          echo '```' >> release_notes.md
+
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -140,4 +172,4 @@ jobs:
             dist/*
           draft: false
           prerelease: false
-          generate_release_notes: true
+          body_path: release_notes.md
