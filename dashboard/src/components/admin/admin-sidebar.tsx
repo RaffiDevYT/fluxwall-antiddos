@@ -139,7 +139,7 @@ export default function AdminSidebar({
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm tracking-tight text-white">{t.brandTitle}</span>
                 <Badge variant="default" className="text-[8px] py-0 px-1 font-bold">
-                  v1.0.6
+                  v1.0.7
                 </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground">{t.brandSubtitle}</p>

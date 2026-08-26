@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # ==============================================================================
-#  🌊 FluxWall - Interactive 1-Line Automated Installer
+#  FluxWall - Interactive Automated VPS Installer
 #  GitHub: https://github.com/RaffiDevYT/fluxwall-antiddos
 # ==============================================================================
 
-set -e
+set -eo pipefail
 
 # Color definitions
 RED='\033[0;31m'
@@ -16,7 +16,7 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-clear
+clear 2>/dev/null || true
 
 echo -e "${CYAN}"
 cat << "EOF"
@@ -40,86 +40,131 @@ fi
 
 INSTALL_DIR="/opt/fluxwall-antiddos"
 
-# 2. Check & Install Dependencies (curl, git)
-echo -e "${YELLOW}[1/6] Memeriksa dependensi sistem...${NC}"
-if ! command -v curl &> /dev/null || ! command -v git &> /dev/null; then
-    echo -e "  -> Menginstall curl dan git..."
-    if command -v apt &> /dev/null; then
-        apt update -y && apt install -y curl git
+# 2. Check & Install System Dependencies
+echo -e "${YELLOW}[1/7] Memeriksa dependensi sistem...${NC}"
+if ! command -v curl &> /dev/null || ! command -v git &> /dev/null || ! command -v openssl &> /dev/null; then
+    echo -e "  -> Menginstall curl, git, dan openssl..."
+    if command -v apt-get &> /dev/null; then
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y && apt-get install -y curl git openssl ca-certificates
     elif command -v yum &> /dev/null; then
-        yum install -y curl git
+        yum install -y curl git openssl ca-certificates
     fi
 fi
-echo -e "${GREEN}  ✓ Dependensi sistem siap.${NC}\n"
+echo -e "${GREEN}  [OK] Dependensi sistem siap.${NC}\n"
 
-# 3. Check & Install Docker & Docker Compose
-echo -e "${YELLOW}[2/6] Memeriksa Docker & Docker Compose...${NC}"
-if ! command -v docker &> /dev/null; then
-    echo -e "  -> Docker belum terpasang. Memulai instalasi otomatis Docker..."
-    curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-    sh /tmp/get-docker.sh
-    rm -f /tmp/get-docker.sh
-    if command -v apt &> /dev/null; then
-        apt install -y docker-compose-plugin
+# 3. Check & Configure Virtual Memory (Swap) on Low RAM VPS (< 2GB)
+echo -e "${YELLOW}[2/7] Memeriksa kapasitas RAM & Virtual Memory...${NC}"
+TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
+SWAP_RAM_MB=$(free -m | awk '/^Swap:/{print $2}')
+
+if [ "$TOTAL_RAM_MB" -lt 2000 ] && [ "$SWAP_RAM_MB" -lt 512 ]; then
+    echo -e "  -> RAM terdeteksi ${TOTAL_RAM_MB}MB (< 2GB). Menyiapkan 2GB Swap Memory agar build Docker tidak crash..."
+    if [ ! -f /swapfile ]; then
+        fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+        chmod 600 /swapfile
+        mkswap /swapfile >/dev/null 2>&1
+        swapon /swapfile >/dev/null 2>&1
+        if ! grep -q "/swapfile" /etc/fstab; then
+            echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
+        fi
+        echo -e "${GREEN}  [OK] 2GB Swap Memory berhasil diaktifkan.${NC}"
     fi
-    systemctl enable --now docker
-    echo -e "${GREEN}  ✓ Docker berhasil diinstall.${NC}"
 else
-    echo -e "${GREEN}  ✓ Docker sudah terpasang.${NC}"
+    echo -e "${GREEN}  [OK] Kapasitas memori sistem memadai (${TOTAL_RAM_MB}MB RAM, ${SWAP_RAM_MB}MB Swap).${NC}"
 fi
 echo ""
 
-# 4. Clone or Update Repository
-echo -e "${YELLOW}[3/6] Mengunduh repository FluxWall...${NC}"
-if [ -d "$INSTALL_DIR" ]; then
-    echo -e "  -> Direktori $INSTALL_DIR sudah ada. Memperbarui file..."
+# 4. Check & Install Docker & Docker Compose
+echo -e "${YELLOW}[3/7] Memeriksa Docker & Docker Compose...${NC}"
+if ! command -v docker &> /dev/null; then
+    echo -e "  -> Docker belum terpasang. Memulai instalasi otomatis Docker..."
+    curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+    sh /tmp/get-docker.sh >/dev/null 2>&1
+    rm -f /tmp/get-docker.sh
+    if command -v apt-get &> /dev/null; then
+        apt-get install -y docker-compose-plugin >/dev/null 2>&1 || true
+    fi
+    systemctl enable --now docker >/dev/null 2>&1 || true
+    echo -e "${GREEN}  [OK] Docker berhasil dipasang.${NC}"
+else
+    echo -e "${GREEN}  [OK] Docker sudah terpasang.${NC}"
+fi
+echo ""
+
+# 5. Clone or Update Repository
+echo -e "${YELLOW}[4/7] Mengunduh source code FluxWall...${NC}"
+if [ -d "$INSTALL_DIR/.git" ]; then
+    echo -e "  -> Direktori $INSTALL_DIR sudah ada. Memperbarui file terbaru..."
     cd "$INSTALL_DIR"
-    git fetch --all && git reset --hard origin/main
+    git fetch --all --quiet && git reset --hard origin/main --quiet
 else
     echo -e "  -> Melakukan clone repository ke $INSTALL_DIR..."
-    git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git "$INSTALL_DIR"
+    rm -rf "$INSTALL_DIR" 2>/dev/null || true
+    git clone https://github.com/RaffiDevYT/fluxwall-antiddos.git "$INSTALL_DIR" --quiet
     cd "$INSTALL_DIR"
 fi
-echo -e "${GREEN}  ✓ Source code FluxWall siap.${NC}\n"
+echo -e "${GREEN}  [OK] Source code FluxWall siap.${NC}\n"
 
-# 5. Interactive Configuration
+# 6. Interactive Configuration (Safe TTY & Input Sanitization)
 echo -e "${CYAN}======================================================"
 echo -e "        PENGATURAN KONFIGURASI FLUXWALL               "
 echo -e "======================================================${NC}"
 
-# Backend Target
-read -rp "$(echo -e "${YELLOW}Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}")" BACKEND_INPUT < /dev/tty
-BACKEND_TARGET=${BACKEND_INPUT:-"host.docker.internal:3000"}
+# Safe Prompt Helper
+prompt_input() {
+    local text="$1"
+    local default_val="$2"
+    local answer=""
 
-# Admin Secret Key
-DEFAULT_SECRET=$(cat /dev/urandom 2>/dev/null | tr -dc 'a-zA-Z0-9' | fold -w 24 | head -n 1)
-[ -z "$DEFAULT_SECRET" ] && DEFAULT_SECRET="fluxwall_admin_$(date +%s)"
-read -rp "$(echo -e "${YELLOW}Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}")" ADMIN_KEY_INPUT < /dev/tty
-ADMIN_SECRET=${ADMIN_KEY_INPUT:-$DEFAULT_SECRET}
+    if [ -t 0 ]; then
+        read -rp "$(echo -e "$text")" answer
+    elif [ -c /dev/tty ] && [ -r /dev/tty ]; then
+        read -rp "$(echo -e "$text")" answer < /dev/tty
+    else
+        answer="$default_val"
+    fi
+    echo "${answer:-$default_val}"
+}
 
-# Rate Limit Max Requests
-read -rp "$(echo -e "${YELLOW}Batas Rate Limit per IP per detik [default: 20]: ${NC}")" RATE_INPUT < /dev/tty
-MAX_REQ=${RATE_INPUT:-20}
+# 6a. Backend Upstream Host/Port
+RAW_BACKEND=$(prompt_input "${YELLOW}Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}" "host.docker.internal:3000")
+# Sanitize: Strip http://, https://, and trailing slash
+BACKEND_TARGET=$(echo "$RAW_BACKEND" | sed -e 's|^http://||' -e 's|^https://||' -e 's|/$||' -e 's| //*|/|g')
+[ -z "$BACKEND_TARGET" ] && BACKEND_TARGET="host.docker.internal:3000"
 
-echo -e "\n${YELLOW}[4/6] Menyimpan konfigurasi...${NC}"
+# 6b. Safe Secret Key Generation (No infinite urandom hang)
+DEFAULT_SECRET=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom 2>/dev/null | LC_ALL=C tr -dc 'a-zA-Z0-9' | head -c 24 || echo "fluxwall_admin_$(date +%s)")
+ADMIN_SECRET=$(prompt_input "${YELLOW}Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}" "$DEFAULT_SECRET")
+
+# 6c. Rate Limit Requests
+RAW_RATE=$(prompt_input "${YELLOW}Batas Rate Limit per IP per detik [default: 20]: ${NC}" "20")
+MAX_REQ=$(echo "$RAW_RATE" | tr -dc '0-9')
+[ -z "$MAX_REQ" ] && MAX_REQ=20
+
+echo -e "\n${YELLOW}[5/7] Menyimpan konfigurasi...${NC}"
 
 # Update conf/nginx.conf with backend target
-sed -i "s|server backend:3000.*|server ${BACKEND_TARGET} max_fails=3 fail_timeout=10s;|g" conf/nginx.conf
-sed -i "s|server host.docker.internal:3000.*|server ${BACKEND_TARGET} max_fails=3 fail_timeout=10s;|g" conf/nginx.conf
+if [ -f conf/nginx.conf ]; then
+    sed -i -E "s|server (backend|host.docker.internal):3000.*|server ${BACKEND_TARGET} max_fails=3 fail_timeout=10s;|g" conf/nginx.conf
+fi
 
-# Update docker-compose.yml with Admin Key & Ports
-sed -i "s|- ADMIN_API_KEY=.*|- ADMIN_API_KEY=${ADMIN_SECRET}|g" docker-compose.yml
+# Update docker-compose.yml with Admin Key
+if [ -f docker-compose.yml ]; then
+    sed -i "s|- ADMIN_API_KEY=.*|- ADMIN_API_KEY=${ADMIN_SECRET}|g" docker-compose.yml
+fi
 
-# Update lua/config.lua with Max Requests if changed
-if [ "$MAX_REQ" != "20" ]; then
+# Update lua/config.lua with Max Requests if customized
+if [ -f lua/config.lua ] && [ "$MAX_REQ" != "20" ]; then
     sed -i "s|max_requests = 20|max_requests = ${MAX_REQ}|g" lua/config.lua
 fi
-echo -e "${GREEN}  ✓ Konfigurasi berhasil disimpan.${NC}\n"
+echo -e "${GREEN}  [OK] Konfigurasi berhasil disimpan.${NC}\n"
 
-# 6. Apply Linux Kernel Anti-DDoS Sysctl Hardening
-echo -e "${YELLOW}[5/6] Menerapkan Hardening Kernel Linux Anti-DDoS...${NC}"
-if ! grep -q "net.ipv4.tcp_syncookies" /etc/sysctl.conf; then
+# 7. Apply Linux Kernel Anti-DDoS Sysctl Hardening
+echo -e "${YELLOW}[6/7] Menerapkan Hardening Kernel Linux Anti-DDoS...${NC}"
+if ! grep -q "net.ipv4.tcp_syncookies" /etc/sysctl.conf 2>/dev/null; then
 cat << 'EOF' >> /etc/sysctl.conf
+
 # FluxWall Anti-DDoS Kernel Hardening
 net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_max_syn_backlog = 65535
@@ -131,33 +176,35 @@ net.ipv4.tcp_fin_timeout = 15
 fs.file-max = 2097152
 EOF
 sysctl -p > /dev/null 2>&1 || true
-echo -e "${GREEN}  ✓ Parameter kernel sysctl berhasil dioptimalkan.${NC}"
+echo -e "${GREEN}  [OK] Parameter kernel sysctl berhasil dioptimalkan.${NC}"
 else
-echo -e "${GREEN}  ✓ Parameter kernel sysctl sudah optimal.${NC}"
+echo -e "${GREEN}  [OK] Parameter kernel sysctl sudah optimal.${NC}"
 fi
 echo ""
 
-# 7. Install CLI Helper (`bin/fluxwall.sh` globally to `/usr/local/bin/fluxwall`)
+# 8. Install Global CLI Utility
 chmod +x "$INSTALL_DIR/bin/fluxwall.sh" 2>/dev/null || true
 ln -sf "$INSTALL_DIR/bin/fluxwall.sh" /usr/local/bin/fluxwall
 
-# 8. Start Containers
-echo -e "${YELLOW}[6/6] Menjalankan FluxWall Gateway...${NC}"
-docker compose down --remove-orphans > /dev/null 2>&1 || true
+# 9. Start Docker Containers
+echo -e "${YELLOW}[7/7] Menjalankan FluxWall Gateway...${NC}"
+docker compose down --remove-orphans >/dev/null 2>&1 || true
 docker compose up -d --build
 
-SERVER_IP=$(curl -s -4 ifconfig.me || hostname -I | awk '{print $1}')
+# Safe Public IP Lookup with strict 2-second timeout
+SERVER_IP=$(curl -s -4 --max-time 2 ifconfig.me 2>/dev/null || curl -s -4 --max-time 2 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
 
 echo -e "\n${GREEN}======================================================"
-echo -e "    🎉 INSTALASI FLUXWALL BERHASIL DISELESAIKAN!      "
+echo -e "    🚀 INSTALASI FLUXWALL BERHASIL DISELESAIKAN!      "
 echo -e "======================================================${NC}"
-echo -e "  🌐 Gateway URL      : ${BOLD}http://${SERVER_IP}:${NC}"
-echo -e "  📊 Admin Dashboard  : ${BOLD}http://${SERVER_IP}:8080/admin/${NC} (atau port 80)"
+echo -e "  🌐 Gateway URL      : ${BOLD}http://${SERVER_IP}:80${NC}"
+echo -e "  🛡️  Admin Dashboard  : ${BOLD}http://${SERVER_IP}:8080/admin/${NC} (atau port 80)"
 echo -e "  🔑 Admin API Key    : ${CYAN}${ADMIN_SECRET}${NC}"
 echo -e "  🎯 Backend Upstream : ${YELLOW}${BACKEND_TARGET}${NC}"
-echo -e "  📈 Metrics Exporter : ${BOLD}http://${SERVER_IP}:8080/metrics${NC}"
+echo -e "  📊 Metrics Exporter : ${BOLD}http://${SERVER_IP}:8080/metrics${NC}"
 echo -e "------------------------------------------------------"
-echo -e "  🛠️  ${BOLD}Manajemen Gateway via CLI:${NC}"
+echo -e "  ⚡ ${BOLD}Manajemen Gateway via CLI:${NC}"
 echo -e "     - Cek status gateway  : ${CYAN}fluxwall status${NC}"
 echo -e "     - Ban IP manual       : ${CYAN}fluxwall ban <IP> [durasi_detik]${NC}"
 echo -e "     - Unban IP            : ${CYAN}fluxwall unban <IP>${NC}"
