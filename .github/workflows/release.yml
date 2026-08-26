@@ -60,8 +60,8 @@ jobs:
 
       - name: Install Packaging Tools (dpkg, rpm, alien)
         run: |
-          sudo apt update
-          sudo apt install -y rpm alien
+          sudo apt-get update
+          sudo apt-get install -y rpm alien
 
       - name: Build Packages
         run: |
@@ -95,26 +95,26 @@ jobs:
 
           # Create Debian Control File
           cat << EOF > "$DEB_DIR/DEBIAN/control"
-Package: fluxwall
-Version: ${VERSION}
-Section: net
-Priority: optional
-Architecture: all
-Maintainer: RaffiDevYT <https://github.com/RaffiDevYT>
-Description: High-Performance Layer-7 Anti-DDoS & Rate Limiting Gateway
- FluxWall is a modern edge security reverse proxy gateway built on OpenResty
- (Nginx + LuaJIT) and Redis with Adaptive Surge Protection and JS PoW Challenge.
-EOF
+          Package: fluxwall
+          Version: ${VERSION}
+          Section: net
+          Priority: optional
+          Architecture: all
+          Maintainer: RaffiDevYT <https://github.com/RaffiDevYT>
+          Description: High-Performance Layer-7 Anti-DDoS & Rate Limiting Gateway
+           FluxWall is a modern edge security reverse proxy gateway built on OpenResty
+           (Nginx + LuaJIT) and Redis with Adaptive Surge Protection and JS PoW Challenge.
+          EOF
 
           # Create Debian Post-Install Hook
           cat << 'EOF' > "$DEB_DIR/DEBIAN/postinst"
-#!/bin/sh
-chmod +x /opt/fluxwall-antiddos/bin/fluxwall.sh
-chmod +x /opt/fluxwall-antiddos/scripts/*.sh
-ln -sf /opt/fluxwall-antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
-echo "FluxWall installed successfully in /opt/fluxwall-antiddos. Type 'fluxwall' to manage."
-exit 0
-EOF
+          #!/bin/sh
+          chmod +x /opt/fluxwall-antiddos/bin/fluxwall.sh
+          chmod +x /opt/fluxwall-antiddos/scripts/*.sh
+          ln -sf /opt/fluxwall-antiddos/bin/fluxwall.sh /usr/local/bin/fluxwall
+          echo "FluxWall installed successfully in /opt/fluxwall-antiddos. Type 'fluxwall' to manage."
+          exit 0
+          EOF
           chmod 755 "$DEB_DIR/DEBIAN/postinst"
 
           # Build .deb
@@ -148,17 +148,15 @@ EOF
 
           echo "" >> release_notes.md
           echo "---" >> release_notes.md
-          cat << 'EOF' >> release_notes.md
-### 📦 Package Builds & Binaries:
-* **Debian / Ubuntu Package**: `fluxwall_*.deb` *(Install via `sudo dpkg -i <file>.deb`)*
-* **RHEL / CentOS / AlmaLinux**: `fluxwall-*.noarch.rpm` *(Install via `sudo rpm -ivh <file>.rpm`)*
-* **Source Tarball**: `fluxwall-*.tar.gz`
-
-### ⚡ 1-Line VPS Quick Install:
-```bash
-curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash
-```
-EOF
+          echo "### 📦 Package Builds & Binaries:" >> release_notes.md
+          echo "* **Debian / Ubuntu Package**: `fluxwall_*.deb` *(Install via `sudo dpkg -i <file>.deb`)*" >> release_notes.md
+          echo "* **RHEL / CentOS / AlmaLinux**: `fluxwall-*.noarch.rpm` *(Install via `sudo rpm -ivh <file>.rpm`)*" >> release_notes.md
+          echo "* **Source Tarball**: `fluxwall-*.tar.gz`" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### ⚡ 1-Line VPS Quick Install:" >> release_notes.md
+          echo "```bash" >> release_notes.md
+          echo "curl -fsSL https://raw.githubusercontent.com/RaffiDevYT/fluxwall-antiddos/main/install.sh | sudo bash" >> release_notes.md
+          echo "```" >> release_notes.md
 
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v4
