@@ -148,15 +148,17 @@ jobs:
 
           echo "" >> release_notes.md
           echo "---" >> release_notes.md
-          echo "### 📦 Package Builds & Binaries:" >> release_notes.md
-          echo "* **Debian / Ubuntu Package**: `fluxwall_*.deb` (`sudo dpkg -i <file>.deb`)" >> release_notes.md
-          echo "* **RHEL / CentOS / AlmaLinux**: `fluxwall-*.noarch.rpm` (`sudo rpm -ivh <file>.rpm`)" >> release_notes.md
-          echo "* **Source Tarball**: `fluxwall-*.tar.gz`" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### ⚡ 1-Line VPS Quick Install:" >> release_notes.md
-          echo '```bash' >> release_notes.md
-          echo "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sudo bash" >> release_notes.md
-          echo '```' >> release_notes.md
+          cat << 'EOF' >> release_notes.md
+### 📦 Package Builds & Binaries:
+* **Debian / Ubuntu Package**: `fluxwall_*.deb` *(Install via `sudo dpkg -i <file>.deb`)*
+* **RHEL / CentOS / AlmaLinux**: `fluxwall-*.noarch.rpm` *(Install via `sudo rpm -ivh <file>.rpm`)*
+* **Source Tarball**: `fluxwall-*.tar.gz`
+
+### ⚡ 1-Line VPS Quick Install:
+```bash
+curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sudo bash
+```
+EOF
 
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v4
