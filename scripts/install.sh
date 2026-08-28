@@ -106,43 +106,44 @@ else
 fi
 echo -e "${GREEN}  [OK] Source code FluxWall siap.${NC}\n"
 
-# 6. Interactive Configuration (Safe TTY & Input Sanitization)
+# 6. Interactive Configuration (Clear, Explicit & Non-Freezing)
 echo -e "${CYAN}======================================================"
 echo -e "        PENGATURAN KONFIGURASI FLUXWALL               "
 echo -e "======================================================${NC}"
 
-# Safe Prompt Helper
-prompt_input() {
-    local text="$1"
-    local default_val="$2"
-    local answer=""
-
-    if [ -t 0 ]; then
-        read -rp "$(echo -e "$text")" answer
-    elif [ -c /dev/tty ] && [ -r /dev/tty ]; then
-        read -rp "$(echo -e "$text")" answer < /dev/tty
+# Helper for robust terminal input
+read_input() {
+    local input=""
+    if [ -c /dev/tty ] && [ -r /dev/tty ]; then
+        read -r input < /dev/tty || input=""
     else
-        answer="$default_val"
+        read -r input || input=""
     fi
-    echo "${answer:-$default_val}"
+    echo "$input"
 }
 
 # 6a. Backend Upstream Host/Port
-RAW_BACKEND=$(prompt_input "${YELLOW}Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}" "host.docker.internal:3000")
-# Sanitize: Strip http://, https://, and trailing slash
-BACKEND_TARGET=$(echo "$RAW_BACKEND" | sed -e 's|^http://||' -e 's|^https://||' -e 's|/$||' -e 's| //*|/|g')
+echo -ne "${YELLOW}1. Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}"
+RAW_BACKEND=$(read_input)
+BACKEND_TARGET=$(echo "${RAW_BACKEND:-host.docker.internal:3000}" | sed -e 's|^http://||' -e 's|^https://||' -e 's|/$||' -e 's| //*|/|g')
 [ -z "$BACKEND_TARGET" ] && BACKEND_TARGET="host.docker.internal:3000"
+echo -e "${GREEN}   -> Target Backend: ${BOLD}${BACKEND_TARGET}${NC}\n"
 
-# 6b. Safe Secret Key Generation (No infinite urandom hang)
-DEFAULT_SECRET=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom 2>/dev/null | LC_ALL=C tr -dc 'a-zA-Z0-9' | head -c 24 || echo "fluxwall_admin_$(date +%s)")
-ADMIN_SECRET=$(prompt_input "${YELLOW}Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}" "$DEFAULT_SECRET")
+# 6b. Safe Secret Key Generation
+DEFAULT_SECRET=$(openssl rand -hex 16 2>/dev/null || echo "fluxwall_admin_$(date +%s)")
+echo -ne "${YELLOW}2. Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}"
+RAW_SECRET=$(read_input)
+ADMIN_SECRET="${RAW_SECRET:-$DEFAULT_SECRET}"
+echo -e "${GREEN}   -> Admin Secret Key: ${BOLD}${ADMIN_SECRET}${NC}\n"
 
 # 6c. Rate Limit Requests
-RAW_RATE=$(prompt_input "${YELLOW}Batas Rate Limit per IP per detik [default: 20]: ${NC}" "20")
-MAX_REQ=$(echo "$RAW_RATE" | tr -dc '0-9')
+echo -ne "${YELLOW}3. Batas Rate Limit per IP per detik [default: 20]: ${NC}"
+RAW_RATE=$(read_input)
+MAX_REQ=$(echo "${RAW_RATE:-20}" | tr -dc '0-9')
 [ -z "$MAX_REQ" ] && MAX_REQ=20
+echo -e "${GREEN}   -> Rate Limit: ${BOLD}${MAX_REQ} req/s${NC}\n"
 
-echo -e "\n${YELLOW}[5/7] Menyimpan konfigurasi...${NC}"
+echo -e "${YELLOW}[5/7] Menyimpan konfigurasi...${NC}"
 
 # Update conf/nginx.conf with backend target
 if [ -f conf/nginx.conf ]; then
