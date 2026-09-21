@@ -127,10 +127,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - ADMIN_API_KEY=GantiDenganPasswordSangatKuat2026!
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - ./lua:/usr/local/openresty/nginx/lua:ro
-      - ./admin:/usr/local/openresty/nginx/admin:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -258,7 +259,7 @@ sysctl -p
 ## 9. Pengoperasian, Dashboard & Perintah Penting
 
 ### 1. Web Admin Dashboard
-Buka: `http://IP_VPS_ANDA:8080/admin/` (atau `https://domainanda.com/admin/`)
+Buka: `http://IP_VPS_ANDA:80/admin/` (atau `http://IP_VPS_ANDA:3001/admin/` untuk akses dashboard langsung)
 
 ### 2. Manajemen via CLI (`fluxwall`)
 ```bash
