@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# ==============================================================================
-#  🌊 FluxWall - Quick Uninstall Entrypoint
-# ==============================================================================
+# FluxWall - Quick Uninstall Entrypoint
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
