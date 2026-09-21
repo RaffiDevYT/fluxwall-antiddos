@@ -18,7 +18,6 @@ function getRedisClient() {
   });
 }
 
-// In-memory fallback
 let inMemoryUpstreams: Array<{
   id: string;
   host: string;
