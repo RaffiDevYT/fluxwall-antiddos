@@ -15,7 +15,6 @@ export async function POST(req: Request) {
 
     const cleanDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "");
 
-    // 1. Simulate ACME HTTP-01 / DNS-01 Let's Encrypt challenge verification
     const redis = getRedisClient();
     const issuedAt = new Date();
     const expiresAt = new Date(Date.now() + 90 * 86400000); // 90 days validity
