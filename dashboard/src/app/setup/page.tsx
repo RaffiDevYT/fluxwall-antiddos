@@ -25,7 +25,6 @@ export default function SetupWizardPage() {
   const [lang, setLang] = useState<"id" | "en">("id");
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Form State
   const [username, setUsername] = useState("admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
