@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
-# ==============================================================================
-#  FluxWall - Quick 1-Line VPS Install Entrypoint
-# ==============================================================================
-
+# FluxWall - Quick 1-Line VPS Install Entrypoint
 set -eo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 
