@@ -9,7 +9,6 @@ export async function POST(req: Request) {
     const redis = getRedisClient();
 
     if (action === "flush_violations") {
-      // Clear rate limit violation strike keys
       const keys = await redis.keys("ip:violations:*");
       if (keys.length > 0) {
         await redis.del(...keys);
