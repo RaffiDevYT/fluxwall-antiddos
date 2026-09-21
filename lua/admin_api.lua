@@ -40,7 +40,7 @@ function _M.handle_request()
     local uri = ngx.var.uri or ""
     ngx.header["Content-Type"] = "application/json; charset=utf-8"
 
-    -- 1. GET /api/admin/stats
+    -- GET /api/admin/stats
     if uri == "/api/admin/stats" and method == "GET" then
         local is_surge, scale_factor, qps = surge_protector.is_surge_active()
         local active_bans_count = 0
@@ -72,7 +72,7 @@ function _M.handle_request()
         ngx.say(cjson.encode(stats))
         return ngx.exit(ngx.HTTP_OK)
 
-    -- 2. /api/admin/bans
+    -- /api/admin/bans
     elseif uri == "/api/admin/bans" then
         if method == "GET" then
             local bans_list = {}
@@ -116,7 +116,7 @@ function _M.handle_request()
             return ngx.exit(ngx.HTTP_OK)
         end
 
-    -- 3. /api/admin/whitelist
+    -- /api/admin/whitelist
     elseif uri == "/api/admin/whitelist" then
         if method == "GET" then
             local list = {}
@@ -152,7 +152,7 @@ function _M.handle_request()
             return ngx.exit(ngx.HTTP_OK)
         end
 
-    -- 4. /api/admin/blacklist
+    -- /api/admin/blacklist
     elseif uri == "/api/admin/blacklist" then
         if method == "GET" then
             local list = {}
