@@ -49,7 +49,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
       }
 
-      // Update in Redis
       const newHash = crypto.createHash("sha256").update(new_password).digest("hex");
       const rootUser = {
         id: "root-1",
