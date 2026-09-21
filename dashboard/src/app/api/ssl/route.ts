@@ -18,7 +18,6 @@ function getRedisClient() {
   });
 }
 
-// In-memory fallback
 let inMemoryDomains: Array<{
   id: string;
   domain: string;
