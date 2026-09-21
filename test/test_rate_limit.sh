@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 
-GATEWAY_URL=${1:-"http://127.0.0.1:8080"}
+GATEWAY_URL=${1:-"http://127.0.0.1:80"}
 ADMIN_KEY=${2:-"super-secret-admin-key-2026"}
 
-echo "=========================================================="
-echo "  FluxWall Anti-DDoS Advanced Features Test Suite         "
-echo "=========================================================="
+echo "FluxWall Anti-DDoS Advanced Features Test Suite"
 echo "Target URL: $GATEWAY_URL"
 echo ""
 
@@ -64,6 +62,4 @@ echo "  -> 200 OK: $status_200"
 echo "  -> 503 Rate Limited: $status_503"
 echo ""
 
-echo "=========================================================="
-echo "  Testing Completed!                                     "
-echo "=========================================================="
+echo "Testing Completed!"
