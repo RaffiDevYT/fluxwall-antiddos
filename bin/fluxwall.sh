@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
-# ==============================================================================
-#  🌊 FluxWall CLI - Gateway Management Utility
-# ==============================================================================
-
+# FluxWall CLI - Gateway Management Utility
 # Determine project root directory (one level up from bin/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/../docker-compose.yml" ]; then
