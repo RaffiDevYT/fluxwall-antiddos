@@ -33,7 +33,7 @@
 By integrating **OpenResty (Nginx + LuaJIT)** with an asynchronous **Redis 7** backend and **L1 Worker In-Memory Dictionaries (`lua_shared_dict`)**, FluxWall executes request inspection, bot fingerprinting, and rate limiting in **under 0.5 milliseconds** with zero backend CPU/RAM exhaustion.
 
 > [!TIP]
-> **Cloudflare Alternative for Self-Hosted Infrastructure**: FluxWall includes a built-in **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**, neutralizing 99.9% of automated HTTP flood scripts, Slowloris attacks, and vulnerability scanners.
+> **Cloudflare Alternative for Self-Hosted Infrastructure**: FluxWall includes a built-in **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**, neutralizing automated HTTP flood scripts, Slowloris attacks, and vulnerability scanners.
 
 ---
 
@@ -144,7 +144,7 @@ fluxwall uninstall                  # Cleanly remove all FluxWall containers and
 
 Access the real-time security dashboard in your browser:
 ```text
-http://YOUR_VPS_IP:8080/admin/   (or https://yourdomain.com/admin/)
+http://YOUR_VPS_IP:80/admin/   (or http://YOUR_VPS_IP:3001/admin/ for direct dashboard access)
 ```
 
 * **Live Streaming QPS Meter**: Visual real-time graph of global queries per second powered by Chart.js.
@@ -182,7 +182,7 @@ scrape_configs:
   - job_name: 'fluxwall_gateway'
     scrape_interval: 5s
     static_configs:
-      - targets: ['YOUR_SERVER_IP:8080']
+      - targets: ['YOUR_SERVER_IP:80']
 ```
 
 **Exported Metrics:**
