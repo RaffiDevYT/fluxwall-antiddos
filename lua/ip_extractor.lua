@@ -22,25 +22,24 @@ end
 function _M.get_client_ip()
     local headers = ngx.req.get_headers()
 
-    -- 1. Cloudflare header
+    -- Cloudflare
     local cf_ip = headers["cf-connecting-ip"]
     if cf_ip and is_valid_ip(cf_ip) then
         return cf_ip
     end
 
-    -- 2. True-Client-IP header (Akamai / Cloudflare Enterprise)
+    -- Akamai / Cloudflare Enterprise
     local true_client_ip = headers["true-client-ip"]
     if true_client_ip and is_valid_ip(true_client_ip) then
         return true_client_ip
     end
 
-    -- 3. X-Real-IP header
     local x_real_ip = headers["x-real-ip"]
     if x_real_ip and is_valid_ip(x_real_ip) then
         return x_real_ip
     end
 
-    -- 4. X-Forwarded-For (Get the first non-proxy IP from comma-separated list)
+    -- X-Forwarded-For: first non-proxy IP from comma-separated list
     local xff = headers["x-forwarded-for"]
     if xff then
         if type(xff) == "table" then
@@ -57,7 +56,6 @@ function _M.get_client_ip()
         end
     end
 
-    -- 5. Fallback to Nginx direct remote address
     return ngx.var.remote_addr or "127.0.0.1"
 end
 
