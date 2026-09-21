@@ -103,7 +103,6 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
     });
   };
 
-  // Form state for adding new decoy trap
   const [trapName, setTrapName] = useState("");
   const [trapPath, setTrapPath] = useState("");
   const [trapAction, setTrapAction] = useState<"IP_BANNED" | "CHALLENGE" | "LOG">("IP_BANNED");
@@ -509,7 +508,7 @@ export default function IncidentForensics({ onInvestigateIp }: IncidentForensics
                     <div className="flex items-center justify-between border-b border-primary/20 pb-2">
                       <div className="text-[11px] font-black uppercase text-white flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5 text-red-400" />
-                        <span>Live Intel — {selectedIncident.attacker_ip}</span>
+                        <span>Live Intel: {selectedIncident.attacker_ip}</span>
                       </div>
                       <Badge variant="destructive" className="text-[8px] font-mono py-0">
                         HOSTILE BOTNET THREAT
