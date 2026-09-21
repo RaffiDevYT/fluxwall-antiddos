@@ -18,7 +18,6 @@ function getRedisClient() {
   });
 }
 
-// In-memory fallback if Redis is not running locally
 let inMemoryCustomRules: Array<{
   id: string;
   name: string;
@@ -90,7 +89,6 @@ export async function POST(req: Request) {
       created_at: new Date().toISOString(),
     };
 
-    // Update in-memory fallback
     const existingIndex = inMemoryCustomRules.findIndex((r) => r.id === ruleId);
     if (existingIndex >= 0) {
       inMemoryCustomRules[existingIndex] = newRule;
@@ -98,7 +96,6 @@ export async function POST(req: Request) {
       inMemoryCustomRules.unshift(newRule);
     }
 
-    // Save to Redis
     const redis = getRedisClient();
     try {
       await redis.set("waf:custom_rules", JSON.stringify(inMemoryCustomRules));
