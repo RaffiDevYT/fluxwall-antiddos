@@ -10,7 +10,7 @@ function _M.is_whitelisted(client_ip)
         return false
     end
 
-    -- 1. Check L1 Shared Memory Dictionary
+    -- L1 shared memory dictionary
     local cache_key = "wl:" .. client_ip
     if ip_cache then
         local cached_val = ip_cache:get(cache_key)
@@ -21,7 +21,6 @@ function _M.is_whitelisted(client_ip)
         end
     end
 
-    -- 2. Query Redis Set "ip:whitelist"
     local is_member = false
     local ok, res = redis_pool.exec(function(red)
         local member, err = red:sismember("ip:whitelist", client_ip)
