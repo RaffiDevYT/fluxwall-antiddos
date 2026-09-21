@@ -102,12 +102,10 @@ function _M.check_canary_trap(red)
     local uri = ngx.var.uri or "/"
     local lower_uri = string.lower(uri)
 
-    -- 1. Check built-in traps
     if default_canary_traps[lower_uri] then
         return true, default_canary_traps[lower_uri]
     end
 
-    -- 2. Check dynamic custom traps in Redis
     if red then
         local custom_traps_json, _ = red:get("waf:canary_traps")
         if custom_traps_json and custom_traps_json ~= ngx.null then
@@ -137,18 +135,15 @@ function _M.check_request()
     local lower_target = string.lower(unescaped_uri)
     local lower_ua = string.lower(user_agent)
 
-    -- 1. Check Range header for Slowloris / Range Bomb attacks
     local is_range_attack, range_reason = _M.check_range_header()
     if is_range_attack then
         return true, range_reason
     end
 
-    -- 2. Check for completely missing or suspiciously short User-Agent
     if user_agent == "" or #user_agent < 4 then
         return true, "EMPTY_OR_INVALID_USER_AGENT"
     end
 
-    -- 3. Match User-Agent against bad bot & scanner patterns
     if config.bad_bots then
         for _, bot_pattern in ipairs(config.bad_bots) do
             if string.find(lower_ua, bot_pattern) then
@@ -157,14 +152,12 @@ function _M.check_request()
         end
     end
 
-    -- 4. Check for obvious exploit / probe paths
     for _, pattern in ipairs(suspicious_paths) do
         if string.find(lower_target, pattern) then
             return true, "EXPLOIT_PATH_PROBE: " .. pattern
         end
     end
 
-    -- 5. Inspect Query String and URI for SQLi / XSS / RCE / LFI payloads
     for _, pattern in ipairs(exploit_patterns) do
         if ngx.re.find(lower_target, pattern, "ijo") then
             return true, "WAF_EXPLOIT_PAYLOAD_DETECTED: " .. pattern
@@ -174,7 +167,6 @@ function _M.check_request()
     return false, nil
 end
 
--- 6. Dynamic Custom WAF Rules Evaluator from Redis
 function _M.check_custom_rules(red)
     if not red then
         return false, nil, nil
