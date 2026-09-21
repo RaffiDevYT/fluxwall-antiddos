@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-# ==============================================================================
-#  FluxWall - Interactive Automated VPS Installer
-#  GitHub: https://github.com/RaffiDevYT/fluxwall-antiddos
-# ==============================================================================
+# FluxWall - Interactive Automated VPS Installer
+# GitHub: https://github.com/RaffiDevYT/fluxwall-antiddos
 
 set -eo pipefail
 
@@ -107,24 +105,23 @@ fi
 echo -e "${GREEN}  [OK] Source code FluxWall siap.${NC}\n"
 
 # 6. Interactive Configuration (Clear, Explicit & Non-Freezing)
-echo -e "${CYAN}======================================================"
-echo -e "        PENGATURAN KONFIGURASI FLUXWALL               "
-echo -e "======================================================${NC}"
+echo -e "${CYAN}--- PENGATURAN KONFIGURASI FLUXWALL ---${NC}"
 
-# Helper for robust terminal input
+# Helper for robust terminal input without subshell freezing (SIGTTIN)
 read_input() {
-    local input=""
+    local var_name=$1
+    local input_val=""
     if [ -c /dev/tty ] && [ -r /dev/tty ]; then
-        read -r input < /dev/tty || input=""
+        read -r input_val < /dev/tty || input_val=""
     else
-        read -r input || input=""
+        read -r input_val || input_val=""
     fi
-    echo "$input"
+    eval "$var_name=\"\$input_val\""
 }
 
 # 6a. Backend Upstream Host/Port
 echo -ne "${YELLOW}1. Masukkan Host/Port Backend Anda [default: host.docker.internal:3000]: ${NC}"
-RAW_BACKEND=$(read_input)
+read_input RAW_BACKEND
 BACKEND_TARGET=$(echo "${RAW_BACKEND:-host.docker.internal:3000}" | sed -e 's|^http://||' -e 's|^https://||' -e 's|/$||' -e 's| //*|/|g')
 [ -z "$BACKEND_TARGET" ] && BACKEND_TARGET="host.docker.internal:3000"
 echo -e "${GREEN}   -> Target Backend: ${BOLD}${BACKEND_TARGET}${NC}\n"
@@ -132,13 +129,13 @@ echo -e "${GREEN}   -> Target Backend: ${BOLD}${BACKEND_TARGET}${NC}\n"
 # 6b. Safe Secret Key Generation
 DEFAULT_SECRET=$(openssl rand -hex 16 2>/dev/null || echo "fluxwall_admin_$(date +%s)")
 echo -ne "${YELLOW}2. Masukkan Admin API Secret Key [default: ${DEFAULT_SECRET}]: ${NC}"
-RAW_SECRET=$(read_input)
+read_input RAW_SECRET
 ADMIN_SECRET="${RAW_SECRET:-$DEFAULT_SECRET}"
 echo -e "${GREEN}   -> Admin Secret Key: ${BOLD}${ADMIN_SECRET}${NC}\n"
 
 # 6c. Rate Limit Requests
 echo -ne "${YELLOW}3. Batas Rate Limit per IP per detik [default: 20]: ${NC}"
-RAW_RATE=$(read_input)
+read_input RAW_RATE
 MAX_REQ=$(echo "${RAW_RATE:-20}" | tr -dc '0-9')
 [ -z "$MAX_REQ" ] && MAX_REQ=20
 echo -e "${GREEN}   -> Rate Limit: ${BOLD}${MAX_REQ} req/s${NC}\n"
@@ -147,12 +144,13 @@ echo -e "${YELLOW}[5/7] Menyimpan konfigurasi...${NC}"
 
 # Update conf/nginx.conf with backend target
 if [ -f conf/nginx.conf ]; then
-    sed -i -E "s|server (backend|host.docker.internal):3000.*|server ${BACKEND_TARGET} max_fails=3 fail_timeout=10s;|g" conf/nginx.conf
+    sed -i "s|server host.docker.internal:3000 max_fails=3 fail_timeout=10s;|server ${BACKEND_TARGET} max_fails=3 fail_timeout=10s;|g" conf/nginx.conf
 fi
 
-# Update docker-compose.yml with Admin Key
+# Update docker-compose.yml with Admin Key and backend target
 if [ -f docker-compose.yml ]; then
     sed -i "s|- ADMIN_API_KEY=.*|- ADMIN_API_KEY=${ADMIN_SECRET}|g" docker-compose.yml
+    sed -i "s|host.docker.internal:3000|${BACKEND_TARGET}|g" docker-compose.yml
 fi
 
 # Update lua/config.lua with Max Requests if customized
@@ -190,21 +188,25 @@ ln -sf "$INSTALL_DIR/bin/fluxwall.sh" /usr/local/bin/fluxwall
 # 9. Start Docker Containers
 echo -e "${YELLOW}[7/7] Menjalankan FluxWall Gateway...${NC}"
 docker compose down --remove-orphans >/dev/null 2>&1 || true
-docker compose up -d --build
+docker compose up -d --build || {
+    echo -e "${RED}[ERROR] Docker build gagal! Memeriksa log...${NC}"
+    docker compose logs --tail=30 2>/dev/null || true
+    echo -e "${YELLOW}Tip: Pastikan tidak ada layanan lain yang menggunakan port 80/443.${NC}"
+    echo -e "${YELLOW}Tip: Jalankan 'docker compose logs' untuk melihat detail error.${NC}"
+    exit 1
+}
 
 # Safe Public IP Lookup with strict 2-second timeout
 SERVER_IP=$(curl -s -4 --max-time 2 ifconfig.me 2>/dev/null || curl -s -4 --max-time 2 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
 [ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
 
-echo -e "\n${GREEN}======================================================"
-echo -e "    🚀 INSTALASI FLUXWALL BERHASIL DISELESAIKAN!      "
-echo -e "======================================================${NC}"
+echo -e "\n${GREEN}--- INSTALASI FLUXWALL BERHASIL DISELESAIKAN! ---${NC}"
 echo -e "  🌐 Gateway URL      : ${BOLD}http://${SERVER_IP}:80${NC}"
-echo -e "  🛡️  Admin Dashboard  : ${BOLD}http://${SERVER_IP}:8080/admin/${NC} (atau port 80)"
+echo -e "  🛡️ Admin Dashboard  : ${BOLD}http://${SERVER_IP}:3001/admin/${NC} (atau port 80 via /admin/)"
 echo -e "  🔑 Admin API Key    : ${CYAN}${ADMIN_SECRET}${NC}"
 echo -e "  🎯 Backend Upstream : ${YELLOW}${BACKEND_TARGET}${NC}"
-echo -e "  📊 Metrics Exporter : ${BOLD}http://${SERVER_IP}:8080/metrics${NC}"
-echo -e "------------------------------------------------------"
+echo -e "  📊 Metrics Exporter : ${BOLD}http://${SERVER_IP}:80/metrics${NC}"
+
 echo -e "  ⚡ ${BOLD}Manajemen Gateway via CLI:${NC}"
 echo -e "     - Cek status gateway  : ${CYAN}fluxwall status${NC}"
 echo -e "     - Ban IP manual       : ${CYAN}fluxwall ban <IP> [durasi_detik]${NC}"
@@ -212,4 +214,4 @@ echo -e "     - Unban IP            : ${CYAN}fluxwall unban <IP>${NC}"
 echo -e "     - Whitelist IP        : ${CYAN}fluxwall whitelist <IP>${NC}"
 echo -e "     - Lihat live log      : ${CYAN}fluxwall logs${NC}"
 echo -e "     - Reload konfigurasi  : ${CYAN}fluxwall reload${NC}"
-echo -e "======================================================\n"
+echo -e ""
