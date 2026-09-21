@@ -1,12 +1,10 @@
 # Extended Test Suite for Nginx-Lua Anti-DDoS Gateway & Advanced Features
 param (
-    [string]$GatewayUrl = "http://127.0.0.1:8080",
+    [string]$GatewayUrl = "http://127.0.0.1:80",
     [string]$AdminKey = "super-secret-admin-key-2026"
 )
 
-Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  FluxWall Anti-DDoS Advanced Features Test Suite         " -ForegroundColor Cyan
-Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "FluxWall Anti-DDoS Advanced Features Test Suite" -ForegroundColor Cyan
 Write-Host "Target URL: $GatewayUrl`n"
 
 # Test 1: Healthcheck
@@ -94,6 +92,4 @@ $rateLimitedCount = 0
 Write-Host "  -> Allowed (200 OK): $successCount" -ForegroundColor Green
 Write-Host "  -> Rate Limited (503 Service Unavailable): $rateLimitedCount" -ForegroundColor Green
 
-Write-Host "`n==========================================================" -ForegroundColor Cyan
-Write-Host "  Testing Completed!                                     " -ForegroundColor Cyan
-Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "`nTesting Completed!" -ForegroundColor Cyan
