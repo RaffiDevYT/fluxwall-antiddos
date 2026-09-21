@@ -11,7 +11,7 @@ function _M.is_blacklisted(client_ip)
         return false, nil, 0
     end
 
-    -- 1. Check L1 Shared Memory Cache
+    -- L1 shared memory cache
     local cache_key = "bl:" .. client_ip
     if ip_cache then
         local cached_val = ip_cache:get(cache_key)
@@ -22,7 +22,6 @@ function _M.is_blacklisted(client_ip)
         end
     end
 
-    -- 2. Query Redis for Permanent Blacklist AND Temporary Ban
     local is_blocked = false
     local reason = nil
     local remaining_ttl = 0
