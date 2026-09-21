@@ -13,25 +13,21 @@ local config = require "config"
 local redis_pool = require "redis_pool"
 local cjson = require "cjson.safe"
 
--- 1. Extract Real Client IP & Request Metadata
 local client_ip = ip_extractor.get_client_ip()
 local uri = ngx.var.uri or "/"
 local method = ngx.req.get_method()
 
--- Expose extracted client IP to downstream / logging
 ngx.var.http_x_real_ip = client_ip
 
--- 2. Track global QPS for Surge Protector & Prometheus
 local is_surge, scale_factor, global_qps = surge_protector.track_request()
 
--- 3. Step: IP Whitelist Check (Instant Fast-Bypass)
 if whitelist.is_whitelisted(client_ip) then
     metrics.inc("gateway_http_requests_total", { status = "200", protection = "whitelisted", method = method })
     ngx.header["X-Gateway-Protection"] = "whitelisted"
     return -- Instantly allow request through
 end
 
--- 3b. Step: IDS Canary Honeypot Trap Decoy Check (Instant 24h Ban)
+-- Canary honeypot trap: triggers a 24h ban on probe paths
 local canary_triggered = false
 redis_pool.exec(function(red)
     local is_canary, trap_name = bot_filter.check_canary_trap(red)
@@ -68,7 +64,6 @@ if canary_triggered then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 4. Step: Bad Bot, Scanner & Exploit Filter
 local is_bad_bot, bot_reason = bot_filter.check_request()
 if is_bad_bot then
     metrics.inc("gateway_blocked_requests_total", { reason = "bad_bot" })
@@ -95,7 +90,6 @@ if is_bad_bot then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 4b. Step: Dynamic Custom WAF Rules Check
 local custom_blocked = false
 redis_pool.exec(function(red)
     local is_custom_threat, custom_reason, custom_action = bot_filter.check_custom_rules(red)
@@ -126,7 +120,6 @@ if custom_blocked then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 5. Step: Blacklist Check
 if blacklist.is_blacklisted(client_ip) then
     metrics.inc("gateway_blocked_requests_total", { reason = "blacklisted" })
     metrics.inc("gateway_http_requests_total", { status = "403", protection = "blacklisted", method = method })
@@ -145,7 +138,6 @@ if blacklist.is_blacklisted(client_ip) then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 6. Step: Temporary Ban / Quarantine Check
 local is_banned, remaining_ttl = auto_ban.is_banned(client_ip)
 if is_banned then
     metrics.inc("gateway_blocked_requests_total", { reason = "banned" })
@@ -167,7 +159,6 @@ if is_banned then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 7. Step: GeoIP & ASN Datacenter / Cloud Proxy Check
 local is_geo_blocked, country_code, is_datacenter = geoip.check_ip(client_ip)
 if is_geo_blocked then
     metrics.inc("gateway_blocked_requests_total", { reason = "geo_blocked" })
@@ -194,7 +185,6 @@ if is_geo_blocked then
     return ngx.exit(ngx.HTTP_FORBIDDEN)
 end
 
--- 8. Step: Global "Under Attack Mode" JavaScript PoW Challenge
 local under_attack = challenge.is_under_attack_mode()
 if under_attack then
     local passed = challenge.verify_pow_cookie(client_ip)
@@ -204,7 +194,6 @@ if under_attack then
     end
 end
 
--- 9. Step: Sliding Window Rate Limiting with Dynamic Burst
 local allowed, count = rate_limiter.check_rate_limit(client_ip, scale_factor)
 if not allowed then
     metrics.inc("gateway_rate_limited_total", { client_ip = client_ip })
