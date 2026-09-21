@@ -63,12 +63,11 @@ end
 -- Resolves Country Code and ASN/Org for a client IP
 -- Flow: L1 Cache -> Redis -> CDN Headers -> ipinfo.io API -> Fallback
 function _M.get_ip_info(client_ip)
-    -- 1. Check Local / Private IP
     if client_ip == "127.0.0.1" or client_ip:match("^192%.168%.") or client_ip:match("^10%.") or client_ip:match("^172%.1[6-9]%.") or client_ip:match("^172%.2[0-9]%.") or client_ip:match("^172%.3[0-1]%.") then
         return { country = "LOCAL", org = "Private Network" }
     end
 
-    -- 2. Check L1 Shared Memory Cache
+    -- L1 shared memory cache
     local cache_key = "geo:" .. client_ip
     if ip_cache then
         local cached_json = ip_cache:get(cache_key)
@@ -80,7 +79,7 @@ function _M.get_ip_info(client_ip)
         end
     end
 
-    -- 3. Check Redis Persistent Cache
+    -- Redis persistent cache
     local redis_info = nil
     redis_pool.exec(function(red)
         local stored = red:get("ip:geo:" .. client_ip)
@@ -96,7 +95,7 @@ function _M.get_ip_info(client_ip)
         return redis_info
     end
 
-    -- 4. Check CDN / Cloudflare Country Header
+    -- CDN / Cloudflare country header
     local headers = ngx.req.get_headers()
     local cf_country = headers["cf-ipcountry"] or headers["x-country-code"] or headers["geoip-country-code"]
     if cf_country and #cf_country == 2 then
@@ -107,7 +106,6 @@ function _M.get_ip_info(client_ip)
         return info
     end
 
-    -- 5. Query https://ipinfo.io/ API
     local ipinfo_data, fetch_err = fetch_ipinfo(client_ip)
     if ipinfo_data and ipinfo_data.country then
         local info = {
@@ -132,7 +130,6 @@ function _M.get_ip_info(client_ip)
         return info
     end
 
-    -- 6. Fallback if API is unreachable / rate limited
     return { country = "UNKNOWN", org = "Unknown" }
 end
 
@@ -161,7 +158,6 @@ function _M.check_country(client_ip)
 
     local mode = config.geoip.mode or "blacklist"
 
-    -- 1. Whitelist Mode: Allow ONLY listed countries
     if mode == "whitelist" then
         if config.geoip.allowed_countries and config.geoip.allowed_countries[country] then
             return true, country, nil
@@ -170,7 +166,7 @@ function _M.check_country(client_ip)
         end
     end
 
-    -- 2. Check dynamic Redis blocked countries from Dashboard
+    -- Dynamic Redis blocked countries from dashboard
     local is_redis_blocked = false
     redis_pool.exec(function(red)
         local member = red:sismember("geoip:blocked_countries", country)
@@ -183,7 +179,6 @@ function _M.check_country(client_ip)
         return false, country, "COUNTRY_BLOCKED_BY_ADMIN (" .. country .. ")"
     end
 
-    -- 3. Blacklist Mode: Block static config listed countries
     if mode == "blacklist" then
         if config.geoip.blocked_countries and config.geoip.blocked_countries[country] then
             return false, country, "COUNTRY_BLOCKED (" .. country .. ")"
