@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-# ==============================================================================
-#  🌊 FluxWall - Clean Uninstaller Script
-#  GitHub: https://github.com/RaffiDevYT/fluxwall-antiddos
-# ==============================================================================
+# FluxWall - Clean Uninstaller Script
+# GitHub: https://github.com/RaffiDevYT/fluxwall-antiddos
 
 set -e
 
@@ -72,6 +70,4 @@ echo -e "\n${YELLOW}[4/4] Membersihkan file temporary...${NC}"
 rm -f /tmp/fluxwall_install_*.sh /tmp/fluxwall_uninstall_*.sh 2>/dev/null || true
 echo -e "${GREEN}  ✓ Pembersihan selesai.${NC}"
 
-echo -e "\n${GREEN}======================================================"
-echo -e "      🎉 FLUXWALL BERHASIL DI-UNINSTALL DENGAN BERSIH "
-echo -e "======================================================${NC}\n"
+echo -e "\n${GREEN}--- FLUXWALL BERHASIL DI-UNINSTALL DENGAN BERSIH ---${NC}\n"
