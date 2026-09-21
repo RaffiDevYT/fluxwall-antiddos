@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Allow Next.js internal static assets, public routes, and setup wizard
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/setup") ||
@@ -19,7 +18,6 @@ export function middleware(request: NextRequest) {
   const session = request.cookies.get("__fluxwall_admin_session");
   const isAuthenticated = !!session?.value;
 
-  // 2. If user is at /login:
   if (pathname === "/login") {
     if (isAuthenticated) {
       // Already logged in -> redirect to /admin
@@ -28,7 +26,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. If user is at root /:
   if (pathname === "/") {
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/admin", request.url));
@@ -36,7 +33,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 4. All other protected routes (/admin, /api/*)
   if (!isAuthenticated) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
