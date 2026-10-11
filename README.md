@@ -2,7 +2,7 @@
 
 # 🌊 FluxWall
 
-**High-Performance Layer 7 Anti-DDoS, Adaptive Traffic Shaper & Bot Mitigation Reverse Proxy Gateway**
+**High-Performance Layer 7 Anti-DDoS Tool, Adaptive Traffic Shaper & Bot Mitigation Reverse Proxy Gateway**
 
 [![OpenResty](https://img.shields.io/badge/OPENRESTY-1.25.3-00758F?style=for-the-badge&logo=nginx&logoColor=white)](https://openresty.org/)
 [![Nginx](https://img.shields.io/badge/NGINX-CORE-009639?style=for-the-badge&logo=nginx&logoColor=white)](https://nginx.org/)
@@ -17,6 +17,7 @@
 [![Version](https://img.shields.io/badge/Version-1.0.0-emerald.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
 [![Status](https://img.shields.io/badge/Status-Active%20%26%20Production%20Ready-brightgreen.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
 [![Protection](https://img.shields.io/badge/Mitigation-Layer%207%20Zero--Backend%20Impact-crimson.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
+[![Tools Category](https://img.shields.io/badge/Category-Anti--DDoS%20Tools-orange.svg?style=flat-square)](https://github.com/RaffiDevYT/fluxwall-antiddos)
 
 **Ultra-fast edge defense built on OpenResty (Nginx + LuaJIT) & Redis to shield web backends from abusive HTTP floods, botnets, scanners, and brute-force attacks.**
 
@@ -28,9 +29,9 @@
 
 ## 💡 Overview
 
-**FluxWall** is a modern, enterprise-grade edge security reverse proxy designed to intercept and neutralize malicious Layer-7 traffic before it can ever reach your backend application servers (*PHP, Node.js, Python, Go, Laravel, WordPress, etc.*).
+**FluxWall** is a modern, enterprise-grade open-source **Layer 7 Anti-DDoS tool** and edge security reverse proxy designed to intercept and neutralize malicious traffic before it can ever reach your backend application servers (*PHP, Node.js, Python, Go, Laravel, WordPress, etc.*).
 
-By integrating **OpenResty (Nginx + LuaJIT)** with an asynchronous **Redis 7** backend and **L1 Worker In-Memory Dictionaries (`lua_shared_dict`)**, FluxWall executes request inspection, bot fingerprinting, and rate limiting in **under 0.5 milliseconds** with zero backend CPU/RAM exhaustion.
+Among self-hosted **anti-ddos tools**, FluxWall stands out by integrating **OpenResty (Nginx + LuaJIT)** with an asynchronous **Redis 7** backend and **L1 Worker In-Memory Dictionaries (`lua_shared_dict`)**, executing request inspection, bot fingerprinting, and rate limiting in **under 0.5 milliseconds** with zero backend CPU/RAM exhaustion.
 
 > [!TIP]
 > **Cloudflare Alternative for Self-Hosted Infrastructure**: FluxWall includes a built-in **JavaScript Proof-of-Work (PoW) Challenge ("Under Attack Mode")**, neutralizing automated HTTP flood scripts, Slowloris attacks, and vulnerability scanners.
@@ -147,10 +148,10 @@ Access the real-time security dashboard in your browser:
 http://YOUR_VPS_IP:80/admin/   (or http://YOUR_VPS_IP:3001/admin/ for direct dashboard access)
 ```
 
-* **Live Streaming QPS Meter**: Visual real-time graph of global queries per second powered by Chart.js.
-* **Surge Defense Badge**: Live visual indicator when adaptive rate-tightening is actively mitigating floods.
-* **1-Click IP Management**: Search, inspect remaining TTLs, and unban quarantined IPs with a single click.
-* **Dynamic Rule Controls**: Add IPs to Whitelists or Permanent Blacklists in real-time without restarting Nginx.
+- **Live Streaming QPS Meter**: Visual real-time graph of global queries per second powered by Chart.js.
+- **Surge Defense Badge**: Live visual indicator when adaptive rate-tightening is actively mitigating floods.
+- **1-Click IP Management**: Search, inspect remaining TTLs, and unban quarantined IPs with a single click.
+- **Dynamic Rule Controls**: Add IPs to Whitelists or Permanent Blacklists in real-time without restarting Nginx.
 
 ---
 
@@ -186,11 +187,11 @@ scrape_configs:
 ```
 
 **Exported Metrics:**
-* `gateway_http_requests_total{status, protection, method}`
-* `gateway_blocked_requests_total{reason}`
-* `gateway_surge_mode_active`
-* `gateway_global_qps`
-* `gateway_active_bans`
+- `gateway_http_requests_total{status, protection, method}`
+- `gateway_blocked_requests_total{reason}`
+- `gateway_surge_mode_active`
+- `gateway_global_qps`
+- `gateway_active_bans`
 
 ---
 
